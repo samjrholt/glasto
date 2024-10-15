@@ -15,6 +15,7 @@ import argparse
 
 import pygame  # Added for sound playback
 import os
+import sys
 
 # Initialize pygame mixer
 pygame.mixer.init()
@@ -221,8 +222,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Monitor a webpage for a key string.")
     parser.add_argument("--url", default="http://localhost:8000/", help="The URL to monitor.")  # https://glastonbury.seetickets.com/
     parser.add_argument("--key-string", default="postcode", help="The key string to search for in the webpage content.")
-    parser.add_argument("--refresh-delay", type=float, default=1, help="Delay in seconds between each webpage refresh.")  # New argument
+    parser.add_argument("--refresh-delay", type=float, default=1, help="Delay in seconds between each webpage refresh.")
     parser.add_argument("--iterations", type=int, default=1, help="Number of iterations per browser.")
+    parser.add_argument("--start-time", help="Start time in format 'YYYY-MM-DD HH:MM:SS' in UTC.")
+    
     args = parser.parse_args()
 
     url_to_monitor = args.url
@@ -231,11 +234,17 @@ if __name__ == "__main__":
     refresh_delay = args.refresh_delay  # Assign to a variable
 
     # Set up the target datetime
-    TARGET_DATETIMES = sorted(
-        [
-            datetime.now(timezone.utc) + timedelta(seconds=1)
-        ]
-    )
+    if args.start_time:
+        try:
+            start_time = datetime.strptime(args.start_time, '%Y-%m-%d %H:%M:%S')
+            start_time = start_time.replace(tzinfo=timezone.utc)
+            TARGET_DATETIMES = [start_time]
+            print(start_time)
+        except ValueError:
+            print("Invalid start time format. Please use 'YYYY-MM-DD HH:MM:SS' format.")
+            sys.exit(1)
+    else:
+        TARGET_DATETIMES = [datetime.now(timezone.utc) + timedelta(seconds=1)]
 
     root = tk.Tk()
     root.title("Running Glasto Program")

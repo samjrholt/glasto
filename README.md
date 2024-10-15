@@ -92,6 +92,7 @@ python glasto.py [options]
 - `--key-string`: The key string to search for (default: `postcode`).
 - `--refresh-delay`: Delay in seconds between each refresh (default: `1`).
 - `--iterations`: Number of browser instances to open (default: `1`).
+- `--start-time"`: Start time in format 'YYYY-MM-DD HH:MM:SS' in UTC. (defaults to 1 second from now).
 
 ### Examples
 
