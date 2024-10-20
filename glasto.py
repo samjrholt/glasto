@@ -49,6 +49,7 @@ def setup_driver():
     chrome_options.add_argument("--disable-blink-features=AutomationControlled") 
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
     chrome_options.add_experimental_option("useAutomationExtension", False) 
+    chrome_options.add_experimental_option("detach", True) 
 
     # Set up ChromeDriver
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
@@ -143,7 +144,6 @@ def refresh_webpage_until_change(driver, browser_instance, url, key_string, refr
             time.sleep(refresh_delay)
 
 def open_in_browsers(url, iterations, refresh_delay):
-    # Open a separate driver for each iteration
     global browser_id_counter
     for _ in range(iterations):
         driver = setup_driver()
@@ -156,11 +156,14 @@ def open_in_browsers(url, iterations, refresh_delay):
             driver.get(url)
             browser_instance.status = 'Running'
             print(f"Opened URL: {url} in {driver}")
-            Thread(target=refresh_webpage_until_change, args=(driver, browser_instance, url, key_string, refresh_delay, individual_stop_event)).start()
+
+            # Start the refresh loop in a regular thread (non-daemon)
+            thread = Thread(target=refresh_webpage_until_change, args=(driver, browser_instance, url, key_string, refresh_delay, individual_stop_event))
+            thread.start()  # Non-daemon thread, so it keeps running after Tkinter exits
         except Exception as e:
             print(f"Failed to open browser in {driver}: {e}")
             browser_instance.status = f"Error opening browser: {e}"
-            driver.quit()
+            # driver.quit()
 
 def check_time(url, key_string, iterations, refresh_delay):
     while not stop_refresh_event.is_set():  # Check if the program is still running
@@ -195,7 +198,7 @@ def update_countdown():
 def on_closing():
     stop_refresh_event.set()  # Stop all refresh loops
     root.destroy()
-    close_all_drivers()  # Close all active driver instances
+    # close_all_drivers()  # Close all active driver instances
 
 def close_all_drivers():
     for driver in active_drivers:
@@ -278,4 +281,8 @@ if __name__ == "__main__":
 
     root.protocol("WM_DELETE_WINDOW", on_closing)  # Handle window closing event
 
-    root.mainloop()
+    try:
+        root.mainloop()
+    except KeyboardInterrupt:
+        print("Program interrupted by user.")
+        pass  # Do nothing to keep browsers open
