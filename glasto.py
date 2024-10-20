@@ -29,6 +29,8 @@ active_drivers = []
 # List to keep track of browser instances
 browser_instances = []
 
+browser_widgets = {}  # Dictionary to store widgets for each browser
+
 # Initialize a counter for browser IDs
 browser_id_counter = 1
 
@@ -57,10 +59,13 @@ def setup_driver():
     return driver
 
 class BrowserInstance:
-    def __init__(self, driver, id):
+    def __init__(self, driver, id, individual_stop_event):
         self.driver = driver
         self.id = id
         self.status = 'Initializing'
+        self.individual_stop_event = individual_stop_event
+        self.is_refreshing = True  # Flag to track if the browser is refreshing
+        self.key_string_found = False  # Flag to indicate if key string was found
 
 def check_page_for_key_string_and_wednesday_button(driver, browser_instance, key_string):
     try:
@@ -77,6 +82,7 @@ def check_page_for_key_string_and_wednesday_button(driver, browser_instance, key
         if key_string in current_content:
             print(f"Key string found in {driver}!")
             browser_instance.status = "Key string found!"
+            browser_instance.key_string_found = True
 
             # Display a visual alert in the browser
             try:
@@ -142,6 +148,19 @@ def refresh_webpage_until_change(driver, browser_instance, url, key_string, refr
             print(f"Error during refresh in {driver}: {e}")
             browser_instance.status = f"Error: {e}"
             time.sleep(refresh_delay)
+            
+    browser_instance.is_refreshing = False
+    if browser_instance.key_string_found:
+        browser_instance.status = 'Key string found!'
+        browser_widgets[browser_instance.id]['button_text'].set('Start Refresh')
+    elif browser_instance.individual_stop_event.is_set():
+        browser_instance.status = 'Refreshing stopped by user.'
+        browser_widgets[browser_instance.id]['button_text'].set('Start Refresh')
+    elif stop_refresh_event.is_set():
+        browser_instance.status = 'Program stopped.'
+    else:
+        browser_instance.status = 'Refreshing stopped.'
+        browser_widgets[browser_instance.id]['button_text'].set('Start Refresh')
 
 def open_in_browsers(url, iterations, refresh_delay):
     global browser_id_counter
@@ -150,7 +169,7 @@ def open_in_browsers(url, iterations, refresh_delay):
         individual_stop_event = Event()  # Create a per-browser stop event
         browser_id = browser_id_counter
         browser_id_counter += 1
-        browser_instance = BrowserInstance(driver, browser_id)
+        browser_instance = BrowserInstance(driver, browser_id, individual_stop_event)
         browser_instances.append(browser_instance)
         try:
             driver.get(url)
@@ -159,11 +178,11 @@ def open_in_browsers(url, iterations, refresh_delay):
 
             # Start the refresh loop in a regular thread (non-daemon)
             thread = Thread(target=refresh_webpage_until_change, args=(driver, browser_instance, url, key_string, refresh_delay, individual_stop_event))
-            thread.start()  # Non-daemon thread, so it keeps running after Tkinter exits
+            thread.start()
         except Exception as e:
             print(f"Failed to open browser in {driver}: {e}")
             browser_instance.status = f"Error opening browser: {e}"
-            # driver.quit()
+            #driver.quit()
 
 def check_time(url, key_string, iterations, refresh_delay):
     while not stop_refresh_event.is_set():  # Check if the program is still running
@@ -209,16 +228,71 @@ def close_all_drivers():
 
 def update_browser_status_display():
     for browser_instance in browser_instances:
-        if browser_instance.id not in browser_labels:
-            # Create a new label for this browser
-            label = tk.Label(browser_status_frame, text=f"Browser {browser_instance.id}: {browser_instance.status}")
-            label.pack()
-            browser_labels[browser_instance.id] = label
+        if browser_instance.id not in browser_widgets:
+            # Create a frame for this browser
+            frame = tk.Frame(browser_status_frame)
+            frame.pack(fill='x', pady=2)
+    
+            # Create a fixed-width frame for the label
+            label_frame = tk.Frame(frame, width=400, height=20)  # Set width as needed
+            label_frame.pack(side=tk.LEFT)
+            label_frame.pack_propagate(False)  # Prevent the frame from resizing based on its content
+    
+            # Create the label inside the fixed-width frame
+            label_text = f"Browser {browser_instance.id}: {browser_instance.status}"
+            label = tk.Label(label_frame, text=label_text, anchor='w', justify='left', wraplength=390)  # Adjust wraplength
+            label.pack(fill='both', expand=True)
+    
+            # Create a button to stop/restart refreshing
+            button_text = tk.StringVar()
+            button_text.set('Stop Refresh' if browser_instance.is_refreshing else 'Start Refresh')
+            button = tk.Button(
+                frame,
+                textvariable=button_text,
+                command=lambda bi=browser_instance, bt=button_text: toggle_refresh(bi, bt)
+            )
+            button.pack(side=tk.RIGHT, padx=5)
+    
+            browser_widgets[browser_instance.id] = {
+                'frame': frame,
+                'label': label,
+                'button': button,
+                'button_text': button_text
+            }
         else:
             # Update the existing label
-            label = browser_labels[browser_instance.id]
-            label.config(text=f"Browser {browser_instance.id}: {browser_instance.status}")
+            label_text = f"Browser {browser_instance.id}: {browser_instance.status}"
+            label = browser_widgets[browser_instance.id]['label']
+            label.config(text=label_text)
+    
+            # Update the button text
+            button_text = browser_widgets[browser_instance.id]['button_text']
+            button_text.set('Stop Refresh' if browser_instance.is_refreshing else 'Start Refresh')
+    
+    # Schedule the function to run again after 1 second
     root.after(1000, update_browser_status_display)
+
+
+def toggle_refresh(browser_instance, button_text):
+    if browser_instance.is_refreshing:
+        # Stop refreshing
+        browser_instance.individual_stop_event.set()
+        browser_instance.is_refreshing = False
+        button_text.set('Start Refresh')
+        browser_instance.status = 'Refreshing stopped by user.'
+    else:
+        # Restart refreshing
+        browser_instance.individual_stop_event.clear()
+        browser_instance.is_refreshing = True
+        browser_instance.key_string_found = False  # Reset the key string found flag
+        button_text.set('Stop Refresh')
+        browser_instance.status = 'Refreshing...'
+
+        # Start the refresh loop again
+        thread = Thread(target=refresh_webpage_until_change, args=(
+            browser_instance.driver, browser_instance, browser_instance.driver.current_url,
+            key_string, refresh_delay, browser_instance.individual_stop_event))
+        thread.start()
 
 if __name__ == "__main__":
     # Parse command-line arguments
@@ -251,7 +325,7 @@ if __name__ == "__main__":
 
     root = tk.Tk()
     root.title("Running Glasto Program")
-    root.geometry("500x300")
+    root.geometry("600x400")
 
     label = tk.Label(
         root, text="The program is running.\nClose this window to stop the program."
