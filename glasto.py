@@ -35,12 +35,15 @@ browser_widgets = {}  # Dictionary to store widgets for each browser
 browser_id_counter = 1
 
 # Load the sound file
-sound_path = os.path.join(os.path.dirname(__file__), 'alert.wav')  # Ensure 'alert.wav' is in the same directory
+sound_path = os.path.join(
+    os.path.dirname(__file__), "alert.wav"
+)  # Ensure 'alert.wav' is in the same directory
 if os.path.exists(sound_path):
     alert_sound = pygame.mixer.Sound(sound_path)
 else:
     print("Alert sound file not found. Sound alerts will be disabled.")
     alert_sound = None
+
 
 def setup_driver():
     # Setup Chrome options
@@ -48,39 +51,58 @@ def setup_driver():
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--no-sandbox")  # Recommended for some environments
     chrome_options.add_argument("--disable-gpu")  # Disable GPU for better compatibility
-    chrome_options.add_argument("--disable-blink-features=AutomationControlled") 
+    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    chrome_options.add_experimental_option("useAutomationExtension", False) 
-    chrome_options.add_experimental_option("detach", True) 
+    chrome_options.add_experimental_option("useAutomationExtension", False)
+    chrome_options.add_experimental_option("detach", True)
 
     # Set up ChromeDriver
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+    driver = webdriver.Chrome(
+        service=Service(ChromeDriverManager().install()), options=chrome_options
+    )
     active_drivers.append(driver)  # Track the driver instance
     return driver
+
 
 class BrowserInstance:
     def __init__(self, driver, id, individual_stop_event):
         self.driver = driver
         self.id = id
-        self.status = 'Initializing'
+        self.status = "Initializing"
         self.individual_stop_event = individual_stop_event
         self.is_refreshing = True  # Flag to track if the browser is refreshing
         self.key_string_found = False  # Flag to indicate if key string was found
 
-def check_page_for_key_string_and_wednesday_button(driver, browser_instance, key_string):
+
+def check_page_for_key_string_and_wednesday_button(
+    driver, browser_instance, key_string
+):
     try:
         # Use case-insensitive matching for 'Wednesday' buttons
-        wednesday_buttons = driver.find_elements(By.XPATH, "//a[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'wednesday')]")
-        
+        wednesday_buttons = driver.find_elements(
+            By.XPATH,
+            "//a[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'wednesday')]",
+        )
+
         if wednesday_buttons:
             # Check if the 'Wednesday' button contains 'Sold Out' or similar text
-            wednesday_button_text = wednesday_buttons[0].text.lower()  # Convert to lowercase for easy matching
-            if 'sold out' in wednesday_button_text or 'unavailable' in wednesday_button_text:
+            wednesday_button_text = wednesday_buttons[
+                0
+            ].text.lower()  # Convert to lowercase for easy matching
+            if (
+                "sold out" in wednesday_button_text
+                or "unavailable" in wednesday_button_text
+            ):
                 # Case-insensitive search for 'Thursday' button
-                thursday_buttons = driver.find_elements(By.XPATH, "//a[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'thursday')]")
+                thursday_buttons = driver.find_elements(
+                    By.XPATH,
+                    "//a[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'thursday')]",
+                )
                 if thursday_buttons:
                     thursday_buttons[0].click()
-                    print(f"'Wednesday' sold out, clicked 'Thursday' button in {driver}!")
+                    print(
+                        f"'Wednesday' sold out, clicked 'Thursday' button in {driver}!"
+                    )
                     browser_instance.status = "'Wednesday' sold out, clicked 'Thursday'"
                 else:
                     print("No 'Thursday' button found.")
@@ -90,7 +112,7 @@ def check_page_for_key_string_and_wednesday_button(driver, browser_instance, key
                 wednesday_buttons[0].click()
                 print(f"Clicked a 'Wednesday' button in {driver}!")
                 browser_instance.status = "Clicked 'Wednesday' button"
-        
+
         # Check for key_string in the page content
         current_content = driver.page_source
         if key_string in current_content:
@@ -123,18 +145,23 @@ def check_page_for_key_string_and_wednesday_button(driver, browser_instance, key
         return False
 
 
-
-def refresh_webpage_until_change(driver, browser_instance, url, key_string, refresh_delay, individual_stop_event=None):
-    while not stop_refresh_event.is_set() and (individual_stop_event is None or not individual_stop_event.is_set()):
+def refresh_webpage_until_change(
+    driver, browser_instance, url, key_string, refresh_delay, individual_stop_event=None
+):
+    while not stop_refresh_event.is_set() and (
+        individual_stop_event is None or not individual_stop_event.is_set()
+    ):
         try:
             driver.refresh()  # Refresh the current page
-            browser_instance.status = 'Refreshing...'
+            browser_instance.status = "Refreshing..."
             WebDriverWait(driver, 10).until(
-                lambda d: d.execute_script('return document.readyState') == 'complete'
+                lambda d: d.execute_script("return document.readyState") == "complete"
             )
 
             # Check the page for key_string and 'Wednesday' button
-            if check_page_for_key_string_and_wednesday_button(driver, browser_instance, key_string):
+            if check_page_for_key_string_and_wednesday_button(
+                driver, browser_instance, key_string
+            ):
                 if individual_stop_event:
                     individual_stop_event.set()
                 break  # Key string found, exit loop
@@ -149,14 +176,19 @@ def refresh_webpage_until_change(driver, browser_instance, url, key_string, refr
                     browser_instance.status = f"Redirected to {current_url}"
                     print(f"Redirect detected in {driver}. New URL: {current_url}")
                     WebDriverWait(driver, 10).until(
-                        lambda d: d.execute_script('return document.readyState') == 'complete'
+                        lambda d: d.execute_script("return document.readyState")
+                        == "complete"
                     )
                     # Check the page again after redirect
-                    if check_page_for_key_string_and_wednesday_button(driver, browser_instance, key_string):
+                    if check_page_for_key_string_and_wednesday_button(
+                        driver, browser_instance, key_string
+                    ):
                         if individual_stop_event:
                             individual_stop_event.set()
                         break  # Key string found, exit loop
-                if stop_refresh_event.is_set() or (individual_stop_event and individual_stop_event.is_set()):
+                if stop_refresh_event.is_set() or (
+                    individual_stop_event and individual_stop_event.is_set()
+                ):
                     break
                 time.sleep(0.1)  # Adjust the sleep interval as needed
 
@@ -164,19 +196,20 @@ def refresh_webpage_until_change(driver, browser_instance, url, key_string, refr
             print(f"Error during refresh in {driver}: {e}")
             browser_instance.status = f"Error: {e}"
             time.sleep(refresh_delay)
-            
+
     browser_instance.is_refreshing = False
     if browser_instance.key_string_found:
-        browser_instance.status = 'Key string found!'
-        browser_widgets[browser_instance.id]['button_text'].set('Start Refresh')
+        browser_instance.status = "Key string found!"
+        browser_widgets[browser_instance.id]["button_text"].set("Start Refresh")
     elif browser_instance.individual_stop_event.is_set():
-        browser_instance.status = 'Refreshing stopped by user.'
-        browser_widgets[browser_instance.id]['button_text'].set('Start Refresh')
+        browser_instance.status = "Refreshing stopped by user."
+        browser_widgets[browser_instance.id]["button_text"].set("Start Refresh")
     elif stop_refresh_event.is_set():
-        browser_instance.status = 'Program stopped.'
+        browser_instance.status = "Program stopped."
     else:
-        browser_instance.status = 'Refreshing stopped.'
-        browser_widgets[browser_instance.id]['button_text'].set('Start Refresh')
+        browser_instance.status = "Refreshing stopped."
+        browser_widgets[browser_instance.id]["button_text"].set("Start Refresh")
+
 
 def open_in_browsers(url, iterations, refresh_delay):
     global browser_id_counter
@@ -189,16 +222,27 @@ def open_in_browsers(url, iterations, refresh_delay):
         browser_instances.append(browser_instance)
         try:
             driver.get(url)
-            browser_instance.status = 'Running'
+            browser_instance.status = "Running"
             print(f"Opened URL: {url} in {driver}")
 
             # Start the refresh loop in a regular thread (non-daemon)
-            thread = Thread(target=refresh_webpage_until_change, args=(driver, browser_instance, url, key_string, refresh_delay, individual_stop_event))
+            thread = Thread(
+                target=refresh_webpage_until_change,
+                args=(
+                    driver,
+                    browser_instance,
+                    url,
+                    key_string,
+                    refresh_delay,
+                    individual_stop_event,
+                ),
+            )
             thread.start()
         except Exception as e:
             print(f"Failed to open browser in {driver}: {e}")
             browser_instance.status = f"Error opening browser: {e}"
-            #driver.quit()
+            # driver.quit()
+
 
 def check_time(url, key_string, iterations, refresh_delay):
     while not stop_refresh_event.is_set():  # Check if the program is still running
@@ -212,8 +256,10 @@ def check_time(url, key_string, iterations, refresh_delay):
                 TARGET_DATETIMES.remove(target)
         time.sleep(0.05)
 
+
 def get_gmt_time():
     return datetime.now(timezone.utc)
+
 
 def update_countdown():
     while not stop_refresh_event.is_set():  # Check if the program is still running
@@ -230,10 +276,12 @@ def update_countdown():
             countdown_str.set("All target times passed.")
         time.sleep(1)
 
+
 def on_closing():
     stop_refresh_event.set()  # Stop all refresh loops
     root.destroy()
     # close_all_drivers()  # Close all active driver instances
+
 
 def close_all_drivers():
     for driver in active_drivers:
@@ -242,49 +290,60 @@ def close_all_drivers():
         except Exception as e:
             print(f"Error closing driver {driver}: {e}")
 
+
 def update_browser_status_display():
     for browser_instance in browser_instances:
         if browser_instance.id not in browser_widgets:
             # Create a frame for this browser
             frame = tk.Frame(browser_status_frame)
-            frame.pack(fill='x', pady=2)
-    
+            frame.pack(fill="x", pady=2)
+
             # Create a fixed-width frame for the label
             label_frame = tk.Frame(frame, width=400, height=20)  # Set width as needed
             label_frame.pack(side=tk.LEFT)
-            label_frame.pack_propagate(False)  # Prevent the frame from resizing based on its content
-    
+            label_frame.pack_propagate(
+                False
+            )  # Prevent the frame from resizing based on its content
+
             # Create the label inside the fixed-width frame
             label_text = f"Browser {browser_instance.id}: {browser_instance.status}"
-            label = tk.Label(label_frame, text=label_text, anchor='w', justify='left', wraplength=390)  # Adjust wraplength
-            label.pack(fill='both', expand=True)
-    
+            label = tk.Label(
+                label_frame, text=label_text, anchor="w", justify="left", wraplength=390
+            )  # Adjust wraplength
+            label.pack(fill="both", expand=True)
+
             # Create a button to stop/restart refreshing
             button_text = tk.StringVar()
-            button_text.set('Stop Refresh' if browser_instance.is_refreshing else 'Start Refresh')
+            button_text.set(
+                "Stop Refresh" if browser_instance.is_refreshing else "Start Refresh"
+            )
             button = tk.Button(
                 frame,
                 textvariable=button_text,
-                command=lambda bi=browser_instance, bt=button_text: toggle_refresh(bi, bt)
+                command=lambda bi=browser_instance, bt=button_text: toggle_refresh(
+                    bi, bt
+                ),
             )
             button.pack(side=tk.RIGHT, padx=5)
-    
+
             browser_widgets[browser_instance.id] = {
-                'frame': frame,
-                'label': label,
-                'button': button,
-                'button_text': button_text
+                "frame": frame,
+                "label": label,
+                "button": button,
+                "button_text": button_text,
             }
         else:
             # Update the existing label
             label_text = f"Browser {browser_instance.id}: {browser_instance.status}"
-            label = browser_widgets[browser_instance.id]['label']
+            label = browser_widgets[browser_instance.id]["label"]
             label.config(text=label_text)
-    
+
             # Update the button text
-            button_text = browser_widgets[browser_instance.id]['button_text']
-            button_text.set('Stop Refresh' if browser_instance.is_refreshing else 'Start Refresh')
-    
+            button_text = browser_widgets[browser_instance.id]["button_text"]
+            button_text.set(
+                "Stop Refresh" if browser_instance.is_refreshing else "Start Refresh"
+            )
+
     # Schedule the function to run again after 1 second
     root.after(1000, update_browser_status_display)
 
@@ -294,31 +353,55 @@ def toggle_refresh(browser_instance, button_text):
         # Stop refreshing
         browser_instance.individual_stop_event.set()
         browser_instance.is_refreshing = False
-        button_text.set('Start Refresh')
-        browser_instance.status = 'Refreshing stopped by user.'
+        button_text.set("Start Refresh")
+        browser_instance.status = "Refreshing stopped by user."
     else:
         # Restart refreshing
         browser_instance.individual_stop_event.clear()
         browser_instance.is_refreshing = True
         browser_instance.key_string_found = False  # Reset the key string found flag
-        button_text.set('Stop Refresh')
-        browser_instance.status = 'Refreshing...'
+        button_text.set("Stop Refresh")
+        browser_instance.status = "Refreshing..."
 
         # Start the refresh loop again
-        thread = Thread(target=refresh_webpage_until_change, args=(
-            browser_instance.driver, browser_instance, browser_instance.driver.current_url,
-            key_string, refresh_delay, browser_instance.individual_stop_event))
+        thread = Thread(
+            target=refresh_webpage_until_change,
+            args=(
+                browser_instance.driver,
+                browser_instance,
+                browser_instance.driver.current_url,
+                key_string,
+                refresh_delay,
+                browser_instance.individual_stop_event,
+            ),
+        )
         thread.start()
+
 
 if __name__ == "__main__":
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description="Monitor a webpage for a key string.")
-    parser.add_argument("--url", default="http://localhost:8000/", help="The URL to monitor.")  # https://glastonbury.seetickets.com/
-    parser.add_argument("--key-string", default="postcode", help="The key string to search for in the webpage content.")
-    parser.add_argument("--refresh-delay", type=float, default=1, help="Delay in seconds between each webpage refresh.")
-    parser.add_argument("--iterations", type=int, default=1, help="Number of iterations per browser.")
-    parser.add_argument("--start-time", help="Start time in format 'YYYY-MM-DD HH:MM:SS' in UTC.")
-    
+    parser.add_argument(
+        "--url", default="http://localhost:8000/", help="The URL to monitor."
+    )  # https://glastonbury.seetickets.com/
+    parser.add_argument(
+        "--key-string",
+        default="postcode",
+        help="The key string to search for in the webpage content.",
+    )
+    parser.add_argument(
+        "--refresh-delay",
+        type=float,
+        default=1,
+        help="Delay in seconds between each webpage refresh.",
+    )
+    parser.add_argument(
+        "--iterations", type=int, default=1, help="Number of iterations per browser."
+    )
+    parser.add_argument(
+        "--start-time", help="Start time in format 'YYYY-MM-DD HH:MM:SS' in UTC."
+    )
+
     args = parser.parse_args()
 
     url_to_monitor = args.url
@@ -329,7 +412,7 @@ if __name__ == "__main__":
     # Set up the target datetime
     if args.start_time:
         try:
-            start_time = datetime.strptime(args.start_time, '%Y-%m-%d %H:%M:%S')
+            start_time = datetime.strptime(args.start_time, "%Y-%m-%d %H:%M:%S")
             start_time = start_time.replace(tzinfo=timezone.utc)
             TARGET_DATETIMES = [start_time]
             print(start_time)
@@ -361,7 +444,9 @@ if __name__ == "__main__":
     browser_status_frame.pack(pady=5)
 
     # Define threads
-    thread1 = Thread(target=check_time, args=(url_to_monitor, key_string, iterations, refresh_delay))
+    thread1 = Thread(
+        target=check_time, args=(url_to_monitor, key_string, iterations, refresh_delay)
+    )
     thread2 = Thread(target=update_countdown)
 
     thread1.start()
