@@ -69,14 +69,28 @@ class BrowserInstance:
 
 def check_page_for_key_string_and_wednesday_button(driver, browser_instance, key_string):
     try:
-        # Check for 'Wednesday' buttons
-        wednesday_buttons = driver.find_elements(By.XPATH, "//a[contains(text(), 'WEDNESDAY')]")
+        # Use case-insensitive matching for 'Wednesday' buttons
+        wednesday_buttons = driver.find_elements(By.XPATH, "//a[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'wednesday')]")
+        
         if wednesday_buttons:
-            # If the button is found, click it
-            wednesday_buttons[0].click()
-            print(f"Clicked a 'Wednesday' button in {driver}!")
-            browser_instance.status = "Clicked 'Wednesday' button"
-
+            # Check if the 'Wednesday' button contains 'Sold Out' or similar text
+            wednesday_button_text = wednesday_buttons[0].text.lower()  # Convert to lowercase for easy matching
+            if 'sold out' in wednesday_button_text or 'unavailable' in wednesday_button_text:
+                # Case-insensitive search for 'Thursday' button
+                thursday_buttons = driver.find_elements(By.XPATH, "//a[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'thursday')]")
+                if thursday_buttons:
+                    thursday_buttons[0].click()
+                    print(f"'Wednesday' sold out, clicked 'Thursday' button in {driver}!")
+                    browser_instance.status = "'Wednesday' sold out, clicked 'Thursday'"
+                else:
+                    print("No 'Thursday' button found.")
+                    browser_instance.status = "No 'Thursday' button found"
+            else:
+                # If 'Wednesday' is available, click it
+                wednesday_buttons[0].click()
+                print(f"Clicked a 'Wednesday' button in {driver}!")
+                browser_instance.status = "Clicked 'Wednesday' button"
+        
         # Check for key_string in the page content
         current_content = driver.page_source
         if key_string in current_content:
@@ -107,6 +121,8 @@ def check_page_for_key_string_and_wednesday_button(driver, browser_instance, key
         print(f"Error checking page in {driver}: {e}")
         browser_instance.status = f"Error: {e}"
         return False
+
+
 
 def refresh_webpage_until_change(driver, browser_instance, url, key_string, refresh_delay, individual_stop_event=None):
     while not stop_refresh_event.is_set() and (individual_stop_event is None or not individual_stop_event.is_set()):
