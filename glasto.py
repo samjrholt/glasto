@@ -44,6 +44,46 @@ else:
     print("Alert sound file not found. Sound alerts will be disabled.")
     alert_sound = None
 
+alert_div = """
+        // Create a new div element
+        var alertDiv = document.createElement('div');
+        alertDiv.id = 'customAlert';
+
+        // Style the div to cover the entire viewport
+        alertDiv.style.position = 'fixed';
+        alertDiv.style.top = '0';
+        alertDiv.style.left = '0';
+        alertDiv.style.width = '100%';
+        alertDiv.style.height = '100%';
+        alertDiv.style.backgroundColor = 'rgba(255, 0, 0, 0.5)'; // Semi-transparent background
+        alertDiv.style.display = 'flex';
+        alertDiv.style.justifyContent = 'center';
+        alertDiv.style.alignItems = 'center';
+        alertDiv.style.zIndex = '9999';
+
+        // Create the alert content
+        var alertContent = document.createElement('div');
+        alertContent.style.backgroundColor = 'red';
+        alertContent.style.padding = '40px';
+        alertContent.style.borderRadius = '10px';
+        alertContent.style.color = 'white';
+        alertContent.style.fontSize = '24px';
+        alertContent.style.fontWeight = 'bold';
+        alertContent.style.textAlign = 'center';
+        alertContent.innerText = 'Key string found! Attention!\\nClick to dismiss.';
+
+        // Append the content to the alert div
+        alertDiv.appendChild(alertContent);
+
+        // Append the alert div to the body
+        document.body.appendChild(alertDiv);
+
+        // Add click event to remove the alert
+        alertDiv.onclick = function() {
+            document.body.removeChild(alertDiv);
+        };
+    """
+
 
 def setup_driver():
     # Setup Chrome options
@@ -122,7 +162,8 @@ def check_page_for_key_string_and_wednesday_button(
 
             # Display a visual alert in the browser
             try:
-                driver.execute_script("""alert('Key string found! Attention!');""")
+                # driver.execute_script("""alert('Key string found! Attention!');""")
+                driver.execute_script(alert_div)
             except Exception as js_e:
                 print(f"Error displaying alert in browser {driver}: {js_e}")
 
