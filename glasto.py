@@ -437,7 +437,7 @@ if __name__ == "__main__":
         help="Delay in seconds between each webpage refresh.",
     )
     parser.add_argument(
-        "--iterations", type=int, default=1, help="Number of iterations per browser."
+        "--browsers", type=int, default=1, help="Number of browsers."
     )
     parser.add_argument(
         "--start-time", help="Start time in format 'YYYY-MM-DD HH:MM:SS' in UTC."
