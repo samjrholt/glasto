@@ -67,7 +67,7 @@ It provides real-time updates via a Tkinter GUI and handles browser instances us
    Install packages using pip:
 
    ```bash
-   pip install webdriver-manager argparse selenium pygame
+   pip install -r requirements.txt
    ```
 
 ## Testing
