@@ -99,7 +99,7 @@ python glasto.py [options]
 1. **Monitor a Specific Webpage**
 
    ```bash
-   python glasto.py --url "https://glastonbury.seetickets.com/" --key-string "postcode" --iterations 5
+   python glasto.py --url "https://glastonbury.seetickets.com/" --key-string "postcode" --browsers 5
    ```
 
 2. **Customize Refresh Delay**

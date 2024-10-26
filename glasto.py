@@ -447,7 +447,7 @@ if __name__ == "__main__":
 
     url_to_monitor = args.url
     key_string = args.key_string
-    iterations = args.iterations
+    iterations = args.browsers
     refresh_delay = args.refresh_delay  # Assign to a variable
 
     # Set up the target datetime
