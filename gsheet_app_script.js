@@ -15,6 +15,17 @@ function regenerateMemberTabs() {
     }
   });
 
+  // Define group priorities (lower number = higher priority)
+  const groupPriorities = {
+    '1': {'priority': 1, 'purchased_master_cell_row': '13'},
+    '2': {'priority': 1, 'purchased_master_cell_row': '14'},
+    '3': {'priority': 2, 'purchased_master_cell_row': '15'},
+    '4': {'priority': 2, 'purchased_master_cell_row': '16'},
+    '5': {'priority': 3, 'purchased_master_cell_row': '17'},
+    '6': {'priority': 3, 'purchased_master_cell_row': '18'},
+    '7': {'priority': 3, 'purchased_master_cell_row': '19'},
+  };
+
   // Get data from the Admin tab
   const data = adminSheet.getDataRange().getValues();
   const groups = {};
@@ -22,15 +33,15 @@ function regenerateMemberTabs() {
   // Organize data by group
   data.forEach((row, i) => {
     if (i === 0) return; // Skip header row
-    const group = row[0];
+    const group_id = row[0];
     const name = row[1];
     const regNumber = row[2];
     const postcode = row[3];
     const purchased = row[6]; // Value of Purchased? checkbox in Admin tab
     const purchasedIndex = i + 1; // Row number in Admin tab for checkbox linking
 
-    if (!groups[group]) groups[group] = [];
-    groups[group].push({ name, regNumber, postcode, purchased, purchasedIndex });
+    if (!groups[group_id]) groups[group_id] = [];
+    groups[group_id].push({ group_id, name, regNumber, postcode, purchased, purchasedIndex });
   });
 
   // Create a tab for each member, with their own group first and others in semi-random order
@@ -44,19 +55,26 @@ function regenerateMemberTabs() {
         `=Admin!B${g.purchasedIndex}`,   // Link to Name in Admin tab
         `=Admin!C${g.purchasedIndex}`,   // Link to Registration Number in Admin tab
         `=Admin!D${g.purchasedIndex}`,   // Link to Postcode in Admin tab
-        g.purchased  // Initial value for checkbox
+        `=Admin!G${groupPriorities[g.group_id].purchased_master_cell_row}`, // Link to Purchased? in Admin tab
       ]);
 
       // Add other groups in semi-random order with hard links
       const otherGroups = Object.keys(groups).filter(g => g !== group);
       const orderedOtherGroups = otherGroups.sort(() => 0.5 - Math.random());
 
+      // WIP: Sort other groups by priority
+      // const orderedOtherGroups = otherGroups.sort((a, b) => {
+      //   const priorityA = groupPriorities[a].priority;
+      //   const priorityB = groupPriorities[b].priority;
+      //   return (Math.random() - 0.5) * (4 - priorityA) - (4 - priorityB); // Prioritize groups with higher priority
+      // });
+
       orderedOtherGroups.forEach(otherGroup => {
         const otherGroupData = groups[otherGroup].map(g => [
           `=Admin!B${g.purchasedIndex}`,   // Link to Name in Admin tab
           `=Admin!C${g.purchasedIndex}`,   // Link to Registration Number in Admin tab
           `=Admin!D${g.purchasedIndex}`,   // Link to Postcode in Admin tab
-          g.purchased  // Initial value for checkbox
+          `=Admin!G${groupPriorities[g.group_id].purchased_master_cell_row}`,   // Link to Purchased? in Admin tab
         ]);
         groupData.push(...otherGroupData);
       });
@@ -79,6 +97,21 @@ function regenerateMemberTabs() {
         const groupSize = groups[grp].length;
         const groupRange = sheet.getRange(currentRow, 1, groupSize, 4);
 
+          // Define your custom formula here
+        const customFormula = `=$d${currentRow}=TRUE`;
+
+        // Create the conditional formatting rule
+        var rule = SpreadsheetApp.newConditionalFormatRule()
+          .setRanges([groupRange]) // Specify the range
+          .whenFormulaSatisfied(customFormula) // Apply the custom formula
+          .setBackground('#000000') // Set a background color (optional)
+          .build(); // Build the rule
+
+        // Get existing rules and add the new rule
+        var rules = sheet.getConditionalFormatRules();
+        rules.push(rule); // Add the new rule to existing rules
+        sheet.setConditionalFormatRules(rules);
+
         // Apply alternating colors by group
         const color = index % 2 === 0 ? "#FFEBEE" : "#E3F2FD"; // Light red and light blue alternation
         groupRange.setBackground(color);
@@ -97,15 +130,17 @@ function regenerateMemberTabs() {
       const purchasedRange = sheet.getRange(2, 4, groupData.length, 1);
       purchasedRange.insertCheckboxes();
 
-      // Set initial checkbox values based on Admin tab
-      groupData.forEach((row, index) => {
-        purchasedRange.getCell(index + 1, 1).setValue(row[3]); // row[3] contains the initial checkbox value from Admin
-      });
+      // Add instructions for user
+      sheet.getRange('F2').setValue("Instructions:");
+      sheet.getRange('F2').setFontWeight("bold").setFontSize(12);
+      sheet.getRange('F3').setValue("When you get through to the registration page, copy data from the top group down.")
+      sheet.getRange('F4').setValue("If a group is blacked out, it means that group has already secured tickets.");
+      sheet.getRange('F5').setValue("Please try to get tickets for the next group down and keep us updated on Zoom.");
 
       // Add Ticket link above the table
-      sheet.getRange('F1').setValue("Ticket link");
-      sheet.getRange('G1').setFormula('=HYPERLINK("https://glastonbury.seetickets.com/", "Glastonbury Festival")');
-      sheet.getRange('F1:G1').setFontWeight("bold").setFontSize(12);
+      sheet.getRange('F7').setValue("Ticket link");
+      sheet.getRange('G7').setFormula('=HYPERLINK("https://glastonbury.seetickets.com/", "Glastonbury Festival")');
+      sheet.getRange('F7:G7').setFontWeight("bold").setFontSize(12);
 
       // Add pricing and notes section
       const pricingData = [
@@ -119,12 +154,12 @@ function regenerateMemberTabs() {
         ["", "", ""],
         ["Deposits only cost", "£450.00", ""]
       ];
-      sheet.getRange('F3:H11').setValues(pricingData);
+      sheet.getRange('F9:H17').setValues(pricingData);
 
       // Format pricing and notes section
-      sheet.getRange('F3:H3').setFontWeight("bold");  // Bold header
-      sheet.getRange('F3:H11').setBorder(true, true, true, true, true, true);  // Border around pricing table
-      sheet.getRange('F3:F11').setFontWeight("bold"); // Bold for Item names
+      sheet.getRange('F9:H9').setFontWeight("bold");  // Bold header
+      sheet.getRange('F9:H17').setBorder(true, true, true, true, true, true);  // Border around pricing table
+      sheet.getRange('F9:F17').setFontWeight("bold"); // Bold for Item names
       sheet.setColumnWidth(6, 160);  // Set column width for "Item"
       sheet.setColumnWidth(7, 80);   // Set column width for "Price"
       sheet.setColumnWidth(8, 250);  // Set column width for "Notes"
