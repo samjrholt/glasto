@@ -60,14 +60,22 @@ function regenerateMemberTabs() {
 
       // Add other groups in semi-random order with hard links
       const otherGroups = Object.keys(groups).filter(g => g !== group);
-      const orderedOtherGroups = otherGroups.sort(() => 0.5 - Math.random());
+      // const orderedOtherGroups = otherGroups.sort(() => 0.5 - Math.random());
+      
+      // Generate the list with each group appearing (4 - priority) times
+      const prioritizedList = otherGroups.flatMap(g => {
+        const priority = groupPriorities[g].priority;
+        const repeatCount = 4 - priority;
+        return Array(repeatCount).fill(g);
+      });
 
-      // WIP: Sort other groups by priority
-      // const orderedOtherGroups = otherGroups.sort((a, b) => {
-      //   const priorityA = groupPriorities[a].priority;
-      //   const priorityB = groupPriorities[b].priority;
-      //   return (Math.random() - 0.5) * (4 - priorityA) - (4 - priorityB); // Prioritize groups with higher priority
-      // });
+      // Shuffle the list by sorting with a random comparator
+      const shuffledList = prioritizedList.sort(() => Math.random() - 0.5);
+
+      // Get a unique list in the order of first occurrence
+      const orderedOtherGroups = Array.from(new Set(shuffledList));
+
+      console.log(orderedOtherGroups);
 
       orderedOtherGroups.forEach(otherGroup => {
         const otherGroupData = groups[otherGroup].map(g => [
