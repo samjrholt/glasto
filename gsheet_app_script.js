@@ -26,6 +26,14 @@ function regenerateMemberTabs() {
     '7': {'priority': 3, 'purchased_master_cell_row': '19'},
   };
 
+  // Define priority overrides for next most likely group
+  const specialPriority = {
+    "Jacob Punter": '2',
+    "Sam Holt": '1',
+    "Jack Lee": '1',
+    "Ewan": '1'
+  };
+
   // Get data from the Admin tab
   const data = adminSheet.getDataRange().getValues();
   const groups = {};
@@ -61,7 +69,7 @@ function regenerateMemberTabs() {
       // Add other groups in semi-random order with hard links
       const otherGroups = Object.keys(groups).filter(g => g !== group);
       // const orderedOtherGroups = otherGroups.sort(() => 0.5 - Math.random());
-      
+
       // Generate the list with each group appearing (4 - priority) times
       const prioritizedList = otherGroups.flatMap(g => {
         const priority = groupPriorities[g].priority;
@@ -72,8 +80,17 @@ function regenerateMemberTabs() {
       // Shuffle the list by sorting with a random comparator
       const shuffledList = prioritizedList.sort(() => Math.random() - 0.5);
 
+      let orderedOtherGroups
       // Get a unique list in the order of first occurrence
-      const orderedOtherGroups = Array.from(new Set(shuffledList));
+      orderedOtherGroups = Array.from(new Set(shuffledList));
+
+      if (specialPriority[member.name]) {
+        // Specify the group to move to the start
+        const targetGroup = specialPriority[member.name];
+        // Filter out the target group from orderedOtherGroups
+        const filteredList = orderedOtherGroups.filter(g => g !== targetGroup);
+        orderedOtherGroups = [targetGroup, ...filteredList];
+      }
 
       console.log(orderedOtherGroups);
 
