@@ -148,7 +148,7 @@ function regenerateMemberTabs() {
 
       // Set column widths for better readability
       sheet.setColumnWidth(1, 150);  // Name
-      sheet.setColumnWidth(2, 120);  // Registration Number
+      sheet.setColumnWidth(2, 140);  // Registration Number
       sheet.setColumnWidth(3, 100);  // Postcode
       sheet.setColumnWidth(4, 100);  // Purchased?
 
