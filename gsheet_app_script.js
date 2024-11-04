@@ -9,8 +9,9 @@ function regenerateMemberTabs() {
 
   // Clear all existing member tabs
   const sheets = ss.getSheets();
+  protected_sheets = ['Admin', 'Welcome']
   sheets.forEach(sheet => {
-    if (sheet.getName() !== 'Admin') {
+    if (!protected_sheets.includes(sheet.getName())) {
       ss.deleteSheet(sheet);
     }
   });
@@ -73,7 +74,7 @@ function regenerateMemberTabs() {
       // Generate the list with each group appearing (4 - priority) times
       const prioritizedList = otherGroups.flatMap(g => {
         const priority = groupPriorities[g].priority;
-        const repeatCount = 4 - priority;
+        const repeatCount = 6 - priority;
         return Array(repeatCount).fill(g);
       });
 
