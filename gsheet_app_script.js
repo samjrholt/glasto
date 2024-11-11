@@ -18,13 +18,13 @@ function regenerateMemberTabs() {
 
   // Define group priorities (lower number = higher priority)
   const groupPriorities = {
-    '1': {'priority': 1, 'purchased_master_cell_row': '13'},
-    '2': {'priority': 1, 'purchased_master_cell_row': '14'},
-    '3': {'priority': 2, 'purchased_master_cell_row': '15'},
-    '4': {'priority': 2, 'purchased_master_cell_row': '16'},
-    '5': {'priority': 3, 'purchased_master_cell_row': '17'},
-    '6': {'priority': 3, 'purchased_master_cell_row': '18'},
-    '7': {'priority': 3, 'purchased_master_cell_row': '19'},
+    '1': {'priority': 1, 'master_cell_row': '13'},
+    '2': {'priority': 1, 'master_cell_row': '14'},
+    '3': {'priority': 2, 'master_cell_row': '15'},
+    '4': {'priority': 2, 'master_cell_row': '16'},
+    '5': {'priority': 3, 'master_cell_row': '17'},
+    '6': {'priority': 3, 'master_cell_row': '18'},
+    '7': {'priority': 3, 'master_cell_row': '19'},
   };
 
   // Define priority overrides for next most likely group
@@ -47,24 +47,26 @@ function regenerateMemberTabs() {
     const regNumber = row[2];
     const postcode = row[3];
     const purchased = row[6]; // Value of Purchased? checkbox in Admin tab
+    const processing = row[7]; // Value of Purchased? checkbox in Admin tab
     const purchasedIndex = i + 1; // Row number in Admin tab for checkbox linking
 
     if (!groups[group_id]) groups[group_id] = [];
-    groups[group_id].push({ group_id, name, regNumber, postcode, purchased, purchasedIndex });
+    groups[group_id].push({ group_id, name, regNumber, postcode, purchased, processing, purchasedIndex });
   });
 
   // Create a tab for each member, with their own group first and others in semi-random order
   for (const group in groups) {
     groups[group].forEach(member => {
       const sheet = ss.insertSheet(member.name);
-      const header = [["Name", "Registration Number", "Postcode", "Purchased?"]];
+      const header = [["Name", "Registration Number", "Postcode", "Purchased?", "Processing?"]];
 
       // Add member’s own group at the top with hard links
       const groupData = groups[group].map(g => [
         `=Admin!B${g.purchasedIndex}`,   // Link to Name in Admin tab
         `=Admin!C${g.purchasedIndex}`,   // Link to Registration Number in Admin tab
         `=Admin!D${g.purchasedIndex}`,   // Link to Postcode in Admin tab
-        `=Admin!G${groupPriorities[g.group_id].purchased_master_cell_row}`, // Link to Purchased? in Admin tab
+        `=Admin!G${groupPriorities[g.group_id].master_cell_row}`,   // Link to Purchased? in Admin tab
+        `=Admin!H${groupPriorities[g.group_id].master_cell_row}`,   // Link to Processing? in Admin tab
       ]);
 
       // Add other groups in semi-random order with hard links
@@ -100,7 +102,8 @@ function regenerateMemberTabs() {
           `=Admin!B${g.purchasedIndex}`,   // Link to Name in Admin tab
           `=Admin!C${g.purchasedIndex}`,   // Link to Registration Number in Admin tab
           `=Admin!D${g.purchasedIndex}`,   // Link to Postcode in Admin tab
-          `=Admin!G${groupPriorities[g.group_id].purchased_master_cell_row}`,   // Link to Purchased? in Admin tab
+          `=Admin!G${groupPriorities[g.group_id].master_cell_row}`,   // Link to Purchased? in Admin tab
+          `=Admin!H${groupPriorities[g.group_id].master_cell_row}`,   // Link to Processing? in Admin tab
         ]);
         groupData.push(...otherGroupData);
       });
@@ -110,7 +113,7 @@ function regenerateMemberTabs() {
       sheet.getRange(2, 1, groupData.length, groupData[0].length).setValues(groupData);
 
       // Format headers
-      const headerRange = sheet.getRange(1, 1, 1, 4);
+      const headerRange = sheet.getRange(1, 1, 1, 5);
       headerRange.setFontWeight("bold");
       headerRange.setBackground("#000000"); // Black background for headers
       headerRange.setFontColor("#FFFFFF");  // White font color for headers
@@ -121,21 +124,26 @@ function regenerateMemberTabs() {
       let currentRow = startRow;
       Object.keys(groups).forEach((grp, index) => {
         const groupSize = groups[grp].length;
-        const groupRange = sheet.getRange(currentRow, 1, groupSize, 4);
+        const groupRange = sheet.getRange(currentRow, 1, groupSize, 5);
 
-          // Define your custom formula here
-        const customFormula = `=$d${currentRow}=TRUE`;
-
-        // Create the conditional formatting rule
-        var rule = SpreadsheetApp.newConditionalFormatRule()
+        // Create the purchase? conditional formatting rule
+        var purchase_rule = SpreadsheetApp.newConditionalFormatRule()
           .setRanges([groupRange]) // Specify the range
-          .whenFormulaSatisfied(customFormula) // Apply the custom formula
+          .whenFormulaSatisfied(`=$d${currentRow}=TRUE`) // Apply the custom formula
           .setBackground('#000000') // Set a background color (optional)
+          .build(); // Build the rule
+
+        // Create the processing? conditional formatting rule
+        var processing_rule = SpreadsheetApp.newConditionalFormatRule()
+          .setRanges([groupRange]) // Specify the range
+          .whenFormulaSatisfied(`=$e${currentRow}=TRUE`) // Apply the custom formula
+          .setBackground('#a6a6a6') // Set a background color (optional)
           .build(); // Build the rule
 
         // Get existing rules and add the new rule
         var rules = sheet.getConditionalFormatRules();
-        rules.push(rule); // Add the new rule to existing rules
+        rules.push(purchase_rule); // Add the new rule to existing rules
+        rules.push(processing_rule); // Add the new rule to existing rules
         sheet.setConditionalFormatRules(rules);
 
         // Apply alternating colors by group
@@ -151,28 +159,35 @@ function regenerateMemberTabs() {
       sheet.setColumnWidth(2, 140);  // Registration Number
       sheet.setColumnWidth(3, 100);  // Postcode
       sheet.setColumnWidth(4, 100);  // Purchased?
+      sheet.setColumnWidth(5, 100);  // Purchased?
 
       // Add checkboxes to the "Purchased?" column and set initial values
       const purchasedRange = sheet.getRange(2, 4, groupData.length, 1);
       purchasedRange.insertCheckboxes();
 
+      // Add checkboxes to the "Purchased?" column and set initial values
+      const processingRange = sheet.getRange(2, 5, groupData.length, 1);
+      processingRange.insertCheckboxes();
+
       // Add instructions for user
-      sheet.getRange('F2').setValue("Instructions:");
-      sheet.getRange('F2').setFontWeight("bold").setFontSize(12);
-      sheet.getRange('F3').setValue("When you get through to the registration page, copy data from the top group down.")
-      sheet.getRange('F4').setValue("If a group is blacked out, it means that group has already secured tickets.");
-      sheet.getRange('F5').setValue("Please try to get tickets for the next group down and keep us updated on Zoom.");
+      sheet.getRange('G2').setValue("Instructions:");
+      sheet.getRange('G2').setFontWeight("bold").setFontSize(12);
+      sheet.getRange('G3').setValue("When you get through to the registration page, copy data from the top group down.")
+      sheet.getRange('G4').setValue("If a group is greyed out, it means that someone is in the process of securing these tickets.");
+      sheet.getRange('G5').setValue("If a group is blacked out, it means that group has already secured tickets.");
+      sheet.getRange('G6').setValue("Please try to get tickets for the next group down and keep us updated on Zoom.");
 
       // Add Ticket link above the table
-      sheet.getRange('F7').setValue("Ticket link");
-      sheet.getRange('G7').setFormula('=HYPERLINK("https://glastonbury.seetickets.com/", "Glastonbury Festival")');
-      sheet.getRange('F7:G7').setFontWeight("bold").setFontSize(12);
+      sheet.getRange('G8').setValue("Ticket link");
+      sheet.getRange('H8').setFormula('=HYPERLINK("https://glastonbury.seetickets.com/", "Glastonbury Festival")');
+      sheet.getRange('G8:H8').setFontWeight("bold").setFontSize(12);
 
       // Add pricing and notes section
       const pricingData = [
         ["Item", "Price", "Notes"],
         ["London Coach", "£69.00", ""],
         ["Bath Coach", "£47.00", "Backup if London sells out"],
+        ["Other coach options:", "Anywhere in South or the Midlands (e.g. Reading, Bristol, Birmingham)", ""],
         ["Ticket deposit", "£75.00", ""],
         ["", "", ""],
         ["Total cost at registration", "£864.00", ""],
@@ -180,15 +195,15 @@ function regenerateMemberTabs() {
         ["", "", ""],
         ["Deposits only cost", "£450.00", ""]
       ];
-      sheet.getRange('F9:H17').setValues(pricingData);
+      sheet.getRange('G10:I19').setValues(pricingData);
 
       // Format pricing and notes section
-      sheet.getRange('F9:H9').setFontWeight("bold");  // Bold header
-      sheet.getRange('F9:H17').setBorder(true, true, true, true, true, true);  // Border around pricing table
-      sheet.getRange('F9:F17').setFontWeight("bold"); // Bold for Item names
-      sheet.setColumnWidth(6, 160);  // Set column width for "Item"
-      sheet.setColumnWidth(7, 80);   // Set column width for "Price"
-      sheet.setColumnWidth(8, 250);  // Set column width for "Notes"
+      sheet.getRange('G9:I10').setFontWeight("bold");  // Bold header
+      sheet.getRange('G10:I19').setBorder(true, true, true, true, true, true);  // Border around pricing table
+      sheet.getRange('G10:G19').setFontWeight("bold"); // Bold for Item names
+      sheet.setColumnWidth(7, 160);  // Set column width for "Item"
+      sheet.setColumnWidth(8, 80);   // Set column width for "Price"
+      sheet.setColumnWidth(9, 450);  // Set column width for "Notes"
     });
   }
 }
