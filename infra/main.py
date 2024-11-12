@@ -1,10 +1,22 @@
 import os
 from linode_api4 import LinodeClient
+import base64
+
+
+def get_userdata_encoded():
+    with open('infra/userdata.sh', 'r') as f:
+        userdata = f.read()
+    with open('infra/env', 'r') as f:
+        envdata = f.read()
+    userdata = userdata.replace('TAILSCALE_AUTH_KEY_PLACEHOLDER', envdata)
+    encoded = base64.b64encode(userdata.encode('utf-8'))
+    return encoded.decode('utf-8')
 
 
 def main():
     client = LinodeClient(token=os.getenv('LINODE_TOKEN'))
-    for i in range(20):
+    userdata = get_userdata_encoded()
+    for i in range(1):
         server_id = i+1
         print(f'Creating server {server_id}')
         new_linode = client.linode.instance_create(
@@ -13,9 +25,9 @@ def main():
             image="linode/ubuntu24.04",
             label=f"ubuntu-{server_id}",
             root_pass=os.getenv('LINODE_ROOT_PASS'),
-            # metadata={
-            #     "user_data": "IyEvYmluL2Jhc2gKc3VkbyBhcHQgdXBkYXRlICYmIHN1ZG8gYXB0IHVwZ3JhZGUKc3VkbyBhcHQgaW5zdGFsbCB4ZmNlNCB4ZmNlNC1nb29kaWVzIGRidXMteDExIGZpcmVmb3gtZXNyIApzdWRvIGluc3RhbGwgbGlnaHRkbQpzdWRvIGRwa2ctcmVjb25maWd1cmUgbGlnaHRkbQpzdWRvIHN5c3RlbWN0bCBzdGFydCBsaWdodGRtYQ==",
-            # },
+            metadata={
+                "user_data": userdata
+            },
             authorized_users=["safel"]
         )
 
