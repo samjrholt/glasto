@@ -13,7 +13,9 @@ def get_userdata_encoded():
     return encoded.decode('utf-8')
 
 
-def main():
+def create_servers():
+    if not os.getenv('LINODE_ROOT_PASS'):
+        raise KeyError("You must pass LINODE_ROOT_PASS in order to run this script.")
     client = LinodeClient(token=os.getenv('LINODE_TOKEN'))
     userdata = get_userdata_encoded()
     for i in range(1):
@@ -23,15 +25,23 @@ def main():
             ltype="g6-standard-2",
             region="gb-lon",
             image="linode/ubuntu24.04",
-            label=f"ubuntu-{server_id}",
+            label=f"glasto-box-{server_id}",
             root_pass=os.getenv('LINODE_ROOT_PASS'),
             metadata={
                 "user_data": userdata
             },
-            authorized_users=["safel"]
         )
 
 
+def list_servers():
+    client = LinodeClient(token=os.getenv('LINODE_TOKEN'))
+    servers = client.linode.instances()
+    for s in servers:
+        if 'glasto-box' in s.label:
+            print(s.label, s.ips.ipv4.public[0].address)
+
+
 if __name__ == '__main__':
-    print("You must pass LINODE_ROOT_PASS in order to run this script.")
-    main()
+    create_servers()
+
+    list_servers()
