@@ -13,12 +13,12 @@ def get_userdata_encoded():
     return encoded.decode('utf-8')
 
 
-def create_servers():
+def create_servers(server_count: int = 1):
     if not os.getenv('LINODE_ROOT_PASS'):
         raise KeyError("You must pass LINODE_ROOT_PASS in order to run this script.")
     client = LinodeClient(token=os.getenv('LINODE_TOKEN'))
     userdata = get_userdata_encoded()
-    for i in range(1):
+    for i in range(server_count):
         server_id = i+1
         print(f'Creating server {server_id}')
         new_linode = client.linode.instance_create(
@@ -42,6 +42,7 @@ def list_servers():
 
 
 if __name__ == '__main__':
-    create_servers()
+    server_count = 2
+    create_servers(server_count)
 
     list_servers()
