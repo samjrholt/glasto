@@ -88,33 +88,13 @@ python glasto.py [options]
 
 ### Command-Line Arguments
 
-- `--url`: The URL of the webpage to monitor (default: `http://localhost:8000/`).
-- `--key-string`: The key string to search for (default: `postcode`).
-- `--refresh-delay`: Delay in seconds between each refresh (default: `1`).
+- `--url`: The URL of the webpage to monitor (default: `https://glastonbury.seetickets.com/`).
+- `--key-strings`: The key string to search for (default: [`postcode`, `captcha`]).
 - `--browsers`: Number of browser instances to open (default: `1`).
 - `--start-time"`: Start time in format 'YYYY-MM-DD HH:MM:SS' in UTC. (defaults to 1 second from now).
 
-### Examples
+### Example
 
-1. **Monitor a Specific Webpage**
-
-   ```bash
-   python glasto.py --url "https://glastonbury.seetickets.com/" --key-string "postcode" --browsers 5
-   ```
-
-2. **Customize Refresh Delay**
-
-   ```bash
-   python glasto.py --refresh-delay 2.0
-   ```
-
-
-## Configuration
-
-- **Alert Sound**
-
-  Place an `alert.wav` file in the script directory to enable sound alerts.
-
-- **Browser Options**
-
-  Modify the `setup_driver()` function in the script to change browser options or use a different browser.
+```bash
+python glasto.py --browsers 8
+```
