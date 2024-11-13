@@ -16,6 +16,8 @@ sudo apt-get update
 sudo apt-get install tailscale -y
 sudo tailscale up --auth-key=TAILSCALE_AUTH_KEY_PLACEHOLDER
 tailscale ip -4
+# Setup ifconfig
+apt install net-tools
 # setup chrome
 wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
 sudo apt install ./google-chrome-stable_current_amd64.deb
