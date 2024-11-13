@@ -39,7 +39,7 @@ def create_servers(server_count: int = 1, current_server_ids: list = None):
         userdata = get_userdata_encoded(server_id)
         print(f'Creating server with unique ID {server_id}')
         new_linode = client.linode.instance_create(
-            ltype="g6-standard-2",
+            ltype="g6-standard-4",
             region="gb-lon",
             image="linode/ubuntu24.04",
             label=f"glasto-box-{server_id}",
