@@ -5,7 +5,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import NoSuchElementException
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium_stealth import stealth
+#from selenium_stealth import stealth
 import string
 import random
 
