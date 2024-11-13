@@ -77,3 +77,15 @@ cd glasto
 conda create -n glasto python=3.12 pip
 conda activate glasto
 pip install -r requirements.txt
+
+# Add glasto_conda to bashrc
+echo "conda activate glasto" >> ~/.bashrc
+
+# Add glasto terminal shortcut on desktop
+cat <<EOF > /root/Desktop/glasto-terminal.sh
+#!/bin/bash
+cd ~/glasto
+xfce4-terminal
+EOF
+# Make the script executable
+chmod +x /root/Desktop/glasto-terminal.sh
