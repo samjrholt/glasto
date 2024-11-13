@@ -2,6 +2,7 @@ import os
 from linode_api4 import LinodeClient
 from dotenv import load_dotenv
 import base64
+import re
 
 load_dotenv()
 
@@ -13,14 +14,19 @@ def get_userdata_encoded():
     return encoded.decode('utf-8')
 
 
-def create_servers(server_count: int = 1):
+def create_servers(server_count: int = 1, current_server_ids: list = None):
+    if current_server_ids is None:
+        current_server_ids = []
     if not os.getenv('LINODE_ROOT_PASS'):
         raise KeyError("You must pass LINODE_ROOT_PASS in order to run this script.")
     client = LinodeClient(token=os.getenv('LINODE_TOKEN'))
     userdata = get_userdata_encoded()
-    for i in range(server_count):
-        server_id = i+1
-        print(f'Creating server {server_id}')
+    for _ in range(server_count):
+        server_id = 1
+        # Increment server_id until we find a unique one
+        while server_id in current_server_ids:
+            server_id += 1
+        print(f'Creating server with unique ID {server_id}')
         new_linode = client.linode.instance_create(
             ltype="g6-standard-2",
             region="gb-lon",
@@ -36,13 +42,20 @@ def create_servers(server_count: int = 1):
 def list_servers():
     client = LinodeClient(token=os.getenv('LINODE_TOKEN'))
     servers = client.linode.instances()
+    server_ids = []
+    
     for s in servers:
-        if 'glasto-box' in s.label:
+        match = re.search(r"glasto-box-(\d+)", s.label)
+        if match:
             print(s.label, s.ips.ipv4.public[0].address)
+            server_ids.append(int(match.group(1)))
+    return server_ids
 
 
 if __name__ == '__main__':
-    server_count = 2
-    create_servers(server_count)
+    server_count = 1
+
+    server_ids = list_servers()
+    create_servers(server_count, server_ids)
 
     list_servers()
