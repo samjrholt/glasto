@@ -16,6 +16,7 @@ sudo apt-get update
 sudo apt-get install tailscale -y
 sudo tailscale up --auth-key=TAILSCALE_AUTH_KEY_PLACEHOLDER
 tailscale ip -4
+sudo tailscale set --exit-node=TAILSCALE_EXIT_NODE_PLACEHOLDER
 # Setup ifconfig
 apt install net-tools
 
