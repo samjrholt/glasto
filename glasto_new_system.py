@@ -5,6 +5,10 @@ from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import NoSuchElementException
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium_stealth import stealth
+import string
+import random
+
 import tempfile
 
 import tkinter as tk
@@ -86,9 +90,20 @@ def setup_driver():
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
     chrome_options.add_experimental_option("useAutomationExtension", False)
     chrome_options.add_experimental_option("detach", True)
+    chrome_options.add_argument("start-maximized")
+    chrome_options.add_argument(f'user-agent={''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))}')
 
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
     active_drivers.append(driver)
+    
+    #stealth(driver,
+    #    languages=["en-US", "en"],
+    #    vendor="Google Inc.",
+    #    platform="Win32",
+    #    webgl_vendor="Intel Inc.",
+    #    renderer="Intel Iris OpenGL Engine",
+    #    fix_hairline=True,
+    #    )
     return driver
 
 class BrowserInstance:
@@ -311,7 +326,7 @@ def toggle_monitoring(browser_instance, button_text):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Monitor a webpage for a key string.")
-    parser.add_argument("--url", default="http://localhost:8000/", help="The URL to monitor.")
+    parser.add_argument("--url", default="https://glastonbury.seetickets.com/", help="The URL to monitor.")
     parser.add_argument("--key-strings", nargs='+', default=["postcode", "captcha"], help="The key string to search for in the webpage content.")
     parser.add_argument("--browsers", type=int, default=1, help="Number of browsers.")
     args = parser.parse_args()
