@@ -5,104 +5,106 @@ from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import NoSuchElementException
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium_stealth import stealth
+import string
+import random
 
-import time
-from datetime import datetime, timezone, timedelta
+import tempfile
+
 import tkinter as tk
 from threading import Thread, Event
 from tkinter.font import Font
 import argparse
 
-import pygame  # Added for sound playback
+#import pygame  # For sound playback
 import os
 import sys
+import time
 
 # Initialize pygame mixer
-pygame.mixer.init()
+#pygame.mixer.init()
 
 # Use threading event for stopping the entire program
 stop_refresh_event = Event()
 
-# List to keep track of active drivers
+# List to keep track of active drivers and browser instances
 active_drivers = []
-
-# List to keep track of browser instances
 browser_instances = []
-
-browser_widgets = {}  # Dictionary to store widgets for each browser
+browser_widgets = {}
 
 # Initialize a counter for browser IDs
 browser_id_counter = 1
 
 # Load the sound file
-sound_path = os.path.join(
-    os.path.dirname(__file__), "alert.wav"
-)  # Ensure 'alert.wav' is in the same directory
-if os.path.exists(sound_path):
-    alert_sound = pygame.mixer.Sound(sound_path)
-else:
-    print("Alert sound file not found. Sound alerts will be disabled.")
-    alert_sound = None
+#sound_path = os.path.join(os.path.dirname(__file__), "alert.wav")
+#if os.path.exists(sound_path):
+#    alert_sound = pygame.mixer.Sound(sound_path)
+#else:
+#    print("Alert sound file not found. Sound alerts will be disabled.")
+#    alert_sound = None
 
 alert_div = """
-        // Create a new div element
-        var alertDiv = document.createElement('div');
-        alertDiv.id = 'customAlert';
+    var alertDiv = document.createElement('div');
+    alertDiv.id = 'customAlert';
+    alertDiv.style.position = 'fixed';
+    alertDiv.style.top = '0';
+    alertDiv.style.left = '0';
+    alertDiv.style.width = '100%';
+    alertDiv.style.height = '100%';
+    alertDiv.style.backgroundColor = 'rgba(255, 0, 0, 0.5)';
+    alertDiv.style.display = 'flex';
+    alertDiv.style.justifyContent = 'center';
+    alertDiv.style.alignItems = 'center';
+    alertDiv.style.zIndex = '9999';
 
-        // Style the div to cover the entire viewport
-        alertDiv.style.position = 'fixed';
-        alertDiv.style.top = '0';
-        alertDiv.style.left = '0';
-        alertDiv.style.width = '100%';
-        alertDiv.style.height = '100%';
-        alertDiv.style.backgroundColor = 'rgba(255, 0, 0, 0.5)'; // Semi-transparent background
-        alertDiv.style.display = 'flex';
-        alertDiv.style.justifyContent = 'center';
-        alertDiv.style.alignItems = 'center';
-        alertDiv.style.zIndex = '9999';
+    var alertContent = document.createElement('div');
+    alertContent.style.backgroundColor = 'red';
+    alertContent.style.padding = '40px';
+    alertContent.style.borderRadius = '10px';
+    alertContent.style.color = 'white';
+    alertContent.style.fontSize = '24px';
+    alertContent.style.fontWeight = 'bold';
+    alertContent.style.textAlign = 'center';
+    alertContent.innerText = 'Key string found! Attention!\\nClick to dismiss.';
 
-        // Create the alert content
-        var alertContent = document.createElement('div');
-        alertContent.style.backgroundColor = 'red';
-        alertContent.style.padding = '40px';
-        alertContent.style.borderRadius = '10px';
-        alertContent.style.color = 'white';
-        alertContent.style.fontSize = '24px';
-        alertContent.style.fontWeight = 'bold';
-        alertContent.style.textAlign = 'center';
-        alertContent.innerText = 'Key string found! Attention!\\nClick to dismiss.';
+    alertDiv.appendChild(alertContent);
+    document.body.appendChild(alertDiv);
 
-        // Append the content to the alert div
-        alertDiv.appendChild(alertContent);
-
-        // Append the alert div to the body
-        document.body.appendChild(alertDiv);
-
-        // Add click event to remove the alert
-        alertDiv.onclick = function() {
-            document.body.removeChild(alertDiv);
-        };
-    """
-
+    alertDiv.onclick = function() {
+        document.body.removeChild(alertDiv);
+    };
+"""
 
 def setup_driver():
-    # Setup Chrome options
+    # Create a unique temporary directory for user data for each instance
+    user_data_dir = tempfile.mkdtemp()
+    
     chrome_options = Options()
+    chrome_options.add_argument(f"--user-data-dir={user_data_dir}")
     chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--no-sandbox")  # Recommended for some environments
-    chrome_options.add_argument("--disable-gpu")  # Disable GPU for better compatibility
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+    chrome_options.add_argument("--disable-extensions")
+    chrome_options.add_argument("--remote-debugging-port=0")  # Prevents reuse of the debugging port
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
     chrome_options.add_experimental_option("useAutomationExtension", False)
     chrome_options.add_experimental_option("detach", True)
+    chrome_options.add_argument("start-maximized")
+    chrome_options.add_argument(f'user-agent={''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))}')
 
-    # Set up ChromeDriver
-    driver = webdriver.Chrome(
-        service=Service(ChromeDriverManager().install()), options=chrome_options
-    )
-    active_drivers.append(driver)  # Track the driver instance
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+    active_drivers.append(driver)
+    
+    #stealth(driver,
+    #    languages=["en-US", "en"],
+    #    vendor="Google Inc.",
+    #    platform="Win32",
+    #    webgl_vendor="Intel Inc.",
+    #    renderer="Intel Iris OpenGL Engine",
+    #    fix_hairline=True,
+    #    )
     return driver
-
 
 class BrowserInstance:
     def __init__(self, driver, id, individual_stop_event):
@@ -110,395 +112,241 @@ class BrowserInstance:
         self.id = id
         self.status = "Initializing"
         self.individual_stop_event = individual_stop_event
-        self.is_refreshing = True  # Flag to track if the browser is refreshing
-        self.key_string_found = False  # Flag to indicate if key string was found
+        self.is_monitoring = True
+        self.key_string_found = False
+        self.clicked = False
+        self.driver.execute_script(f"document.title = 'Browser {id}'")
 
-
-def check_page_for_key_string_and_wednesday_button(
-    driver, browser_instance, key_string
-):
+def check_page_for_key_string_and_wednesday_button(driver, browser_instance, key_strings):
     try:
-        # Use case-insensitive matching for 'Wednesday' buttons
         wednesday_buttons = driver.find_elements(
-            By.XPATH,
-            "//a[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'wednesday')]",
+            By.XPATH, "//a[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'wednesday')]"
         )
-
         if wednesday_buttons:
-            # Check if the 'Wednesday' button contains 'Sold Out' or similar text
-            wednesday_button_text = wednesday_buttons[
-                0
-            ].text.lower()  # Convert to lowercase for easy matching
-            if (
-                "sold out" in wednesday_button_text
-                or "unavailable" in wednesday_button_text
-            ):
-                # Case-insensitive search for 'Thursday' button
+            if "sold out" in wednesday_buttons[0].text.lower():
                 thursday_buttons = driver.find_elements(
-                    By.XPATH,
-                    "//a[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'thursday')]",
+                    By.XPATH, "//a[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'thursday')]"
                 )
                 if thursday_buttons:
                     thursday_buttons[0].click()
-                    print(
-                        f"'Wednesday' sold out, clicked 'Thursday' button in {driver}!"
-                    )
+                    print(f"'Wednesday' sold out, clicked 'Thursday' button in {driver}!")
                     browser_instance.status = "'Wednesday' sold out, clicked 'Thursday'"
-                else:
-                    print("No 'Thursday' button found.")
-                    browser_instance.status = "No 'Thursday' button found"
+                    browser_instance.clicked = True
             else:
-                # If 'Wednesday' is available, click it
                 wednesday_buttons[0].click()
                 print(f"Clicked a 'Wednesday' button in {driver}!")
                 browser_instance.status = "Clicked 'Wednesday' button"
+                browser_instance.clicked = True
 
-        # Check for key_string in the page content
         current_content = driver.page_source
-        if key_string in current_content:
-            print(f"Key string found in {driver}!")
-            browser_instance.status = "Key string found!"
-            browser_instance.key_string_found = True
+        for key_string in key_strings:
+            if key_string in current_content:
+                print(f"Key string found in {driver}!")
+                browser_instance.status = "Key string found!"
+                browser_instance.key_string_found = True
 
-            # Display a visual alert in the browser
-            try:
-                # driver.execute_script("""alert('Key string found! Attention!');""")
-                driver.execute_script(alert_div)
-            except Exception as js_e:
-                print(f"Error displaying alert in browser {driver}: {js_e}")
-
-            # Play a sound via pygame (if available)
-            if alert_sound:
                 try:
-                    alert_sound.play()
-                except Exception as sound_e:
-                    print(f"Error playing sound via pygame: {sound_e}")
-            else:
-                print("No alert sound configured.")
+                    driver.execute_script(alert_div)
+                except Exception as js_e:
+                    print(f"Error displaying alert in browser {driver}: {js_e}")
 
-            return True  # Key string found, can stop monitoring
-        else:
-            browser_instance.status = f"'{key_string}' not found, continuing..."
-            return False  # Continue monitoring
+                if alert_sound:
+                    try:
+                        alert_sound.play()
+                    except Exception as sound_e:
+                        print(f"Error playing sound via pygame: {sound_e}")
+
+                return True
+            else:
+                browser_instance.status = f"'{key_string}' not found, monitoring continues."
+                return False
     except Exception as e:
         print(f"Error checking page in {driver}: {e}")
         browser_instance.status = f"Error: {e}"
         return False
 
-
-def refresh_webpage_until_change(
-    driver, browser_instance, url, key_string, refresh_delay, individual_stop_event=None
+def monitor_webpage_until_change(
+    driver, browser_instance, url, key_strings, individual_stop_event=None
 ):
-    while not stop_refresh_event.is_set() and (
-        individual_stop_event is None or not individual_stop_event.is_set()
-    ):
-        try:
-            driver.refresh()  # Refresh the current page
-            browser_instance.status = "Refreshing..."
+    try:
+        driver.get(url)  # Initial page load
+        browser_instance.status = "Monitoring..."
+
+        while not stop_refresh_event.is_set() and (
+            individual_stop_event is None or not individual_stop_event.is_set()
+        ):
             WebDriverWait(driver, 10).until(
                 lambda d: d.execute_script("return document.readyState") == "complete"
             )
+            driver.execute_script(f"document.title = 'Browser {browser_instance.id}'")
 
-            # Check the page for key_string and 'Wednesday' button
-            if check_page_for_key_string_and_wednesday_button(
-                driver, browser_instance, key_string
-            ):
+            # Check for the key string and "Wednesday" button
+            if check_page_for_key_string_and_wednesday_button(driver, browser_instance, key_strings):
+                print(f"Key string found, stopping monitoring for Browser {browser_instance.id}.")
                 if individual_stop_event:
                     individual_stop_event.set()
                 break  # Key string found, exit loop
 
-            # Monitor for redirects during refresh_delay interval
+            # Monitor for redirects during the interval
             current_url = driver.current_url
-            start_time = time.time()
-            while time.time() - start_time < refresh_delay:
-                if driver.current_url != current_url:
-                    # URL has changed, handle the redirect
-                    current_url = driver.current_url
-                    browser_instance.status = f"Redirected to {current_url}"
-                    print(f"Redirect detected in {driver}. New URL: {current_url}")
-                    WebDriverWait(driver, 10).until(
-                        lambda d: d.execute_script("return document.readyState")
-                        == "complete"
-                    )
-                    # Check the page again after redirect
-                    if check_page_for_key_string_and_wednesday_button(
-                        driver, browser_instance, key_string
-                    ):
-                        if individual_stop_event:
-                            individual_stop_event.set()
-                        break  # Key string found, exit loop
-                if stop_refresh_event.is_set() or (
-                    individual_stop_event and individual_stop_event.is_set()
-                ):
-                    break
-                time.sleep(0.1)  # Adjust the sleep interval as needed
 
-        except Exception as e:
-            print(f"Error during refresh in {driver}: {e}")
-            browser_instance.status = f"Error: {e}"
-            time.sleep(refresh_delay)
+            if driver.current_url != current_url:
+                # Handle URL redirect
+                current_url = driver.current_url
+                browser_instance.status = f"Redirected to {current_url}"
+                print(f"Redirect detected in {driver}. New URL: {current_url}")
+                WebDriverWait(driver, 10).until(
+                    lambda d: d.execute_script("return document.readyState") == "complete"
+                )
+                driver.execute_script(f"document.title = 'Browser {browser_instance.id}'")
+                
+                # Check the page again after redirect
+                if check_page_for_key_string_and_wednesday_button(driver, browser_instance, key_strings):
+                    print(f"Key string found after redirect, stopping monitoring for Browser {browser_instance.id}.")
+                    if individual_stop_event:
+                        individual_stop_event.set()
+                    break  # Key string found, exit loop
 
-    browser_instance.is_refreshing = False
+            if stop_refresh_event.is_set() or (
+                individual_stop_event and individual_stop_event.is_set()
+            ):
+                break
+            time.sleep(0.1)  # Adjust the sleep interval as needed
+
+    except Exception as e:
+        print(f"Error during monitoring in Browser {browser_instance.id}: {e}")
+        browser_instance.status = f"Error: {e}"
+        
+    # Additional logic to update button text when monitoring stops
+    browser_instance.is_monitoring = False  # Set the monitoring status to False
     if browser_instance.key_string_found:
         browser_instance.status = "Key string found!"
-        browser_widgets[browser_instance.id]["button_text"].set("Start Refresh")
     elif browser_instance.individual_stop_event.is_set():
-        browser_instance.status = "Refreshing stopped by user."
-        browser_widgets[browser_instance.id]["button_text"].set("Start Refresh")
+        browser_instance.status = "Monitoring stopped by user."
     elif stop_refresh_event.is_set():
         browser_instance.status = "Program stopped."
     else:
-        browser_instance.status = "Refreshing stopped."
-        browser_widgets[browser_instance.id]["button_text"].set("Start Refresh")
+        browser_instance.status = "Monitoring stopped."
+    
+    # Update button text in the GUI
+    browser_widgets[browser_instance.id]["button_text"].set("Start Monitoring")
+        
 
-
-def open_in_browsers(url, iterations, refresh_delay):
+def open_in_browsers(url, iterations):
     global browser_id_counter
     for _ in range(iterations):
         driver = setup_driver()
-        individual_stop_event = Event()  # Create a per-browser stop event
+        individual_stop_event = Event()
         browser_id = browser_id_counter
         browser_id_counter += 1
         browser_instance = BrowserInstance(driver, browser_id, individual_stop_event)
         browser_instances.append(browser_instance)
         try:
-            driver.get(url)
-            browser_instance.status = "Running"
-            print(f"Opened URL: {url} in {driver}")
-
-            # Start the refresh loop in a regular thread (non-daemon)
             thread = Thread(
-                target=refresh_webpage_until_change,
-                args=(
-                    driver,
-                    browser_instance,
-                    url,
-                    key_string,
-                    refresh_delay,
-                    individual_stop_event,
-                ),
+                target=monitor_webpage_until_change,
+                args=(driver, browser_instance, url, key_strings, individual_stop_event),
             )
             thread.start()
         except Exception as e:
             print(f"Failed to open browser in {driver}: {e}")
             browser_instance.status = f"Error opening browser: {e}"
-            # driver.quit()
-
-
-def check_time(url, key_string, iterations, refresh_delay):
-    while not stop_refresh_event.is_set():  # Check if the program is still running
-        current_time = get_gmt_time()
-        past_targets = [target for target in TARGET_DATETIMES if target <= current_time]
-
-        if past_targets:
-            open_in_browsers(url, iterations, refresh_delay)  # Pass refresh_delay
-
-            for target in past_targets:
-                TARGET_DATETIMES.remove(target)
-        time.sleep(0.05)
-
-
-def get_gmt_time():
-    return datetime.now(timezone.utc)
-
-
-def update_countdown():
-    while not stop_refresh_event.is_set():  # Check if the program is still running
-        current_time = get_gmt_time()
-        next_target = next(
-            (target for target in TARGET_DATETIMES if target > current_time), None
-        )
-        if next_target:
-            difference = next_target - current_time
-            hours, remainder = divmod(difference.seconds, 3600)
-            minutes, seconds = divmod(remainder, 60)
-            countdown_str.set(f"{difference.days}d {hours}h {minutes}m {seconds}s")
-        else:
-            countdown_str.set("All target times passed.")
-        time.sleep(1)
-
-
-def on_closing():
-    stop_refresh_event.set()  # Stop all refresh loops
-    root.destroy()
-    # close_all_drivers()  # Close all active driver instances
-
-
-def close_all_drivers():
-    for driver in active_drivers:
-        try:
-            driver.quit()
-        except Exception as e:
-            print(f"Error closing driver {driver}: {e}")
-
 
 def update_browser_status_display():
     for browser_instance in browser_instances:
         if browser_instance.id not in browser_widgets:
-            # Create a frame for this browser
             frame = tk.Frame(browser_status_frame)
             frame.pack(fill="x", pady=2)
 
-            # Create a fixed-width frame for the label
-            label_frame = tk.Frame(frame, width=400, height=20)  # Set width as needed
+            label_frame = tk.Frame(frame, width=400, height=20)
             label_frame.pack(side=tk.LEFT)
-            label_frame.pack_propagate(
-                False
-            )  # Prevent the frame from resizing based on its content
+            label_frame.pack_propagate(False)
 
-            # Create the label inside the fixed-width frame
             label_text = f"Browser {browser_instance.id}: {browser_instance.status}"
-            label = tk.Label(
-                label_frame, text=label_text, anchor="w", justify="left", wraplength=390
-            )  # Adjust wraplength
+            label = tk.Label(label_frame, text=label_text, anchor="w", justify="left", wraplength=390)
             label.pack(fill="both", expand=True)
 
-            # Create a button to stop/restart refreshing
             button_text = tk.StringVar()
-            button_text.set(
-                "Stop Refresh" if browser_instance.is_refreshing else "Start Refresh"
-            )
+            button_text.set("Stop Monitoring" if browser_instance.is_monitoring else "Start Monitoring")
             button = tk.Button(
                 frame,
                 textvariable=button_text,
-                command=lambda bi=browser_instance, bt=button_text: toggle_refresh(
-                    bi, bt
-                ),
+                command=lambda bi=browser_instance, bt=button_text: toggle_monitoring(bi, bt),
             )
             button.pack(side=tk.RIGHT, padx=5)
+            
+            # Create a label to show "Clicked" next to the button, initially hidden
+            clicked_label = tk.Label(frame, text="", fg="blue")
+            clicked_label.pack(side=tk.RIGHT, padx=5)
 
             browser_widgets[browser_instance.id] = {
                 "frame": frame,
                 "label": label,
                 "button": button,
                 "button_text": button_text,
+                "clicked_label": clicked_label,
             }
         else:
-            # Update the existing label
             label_text = f"Browser {browser_instance.id}: {browser_instance.status}"
             label = browser_widgets[browser_instance.id]["label"]
             label.config(text=label_text)
 
-            # Update the button text
             button_text = browser_widgets[browser_instance.id]["button_text"]
-            button_text.set(
-                "Stop Refresh" if browser_instance.is_refreshing else "Start Refresh"
-            )
+            button_text.set("Stop Monitoring" if browser_instance.is_monitoring else "Start Monitoring")
+            
+             # Update "Clicked" label visibility
+            clicked_label = browser_widgets[browser_instance.id]["clicked_label"]
+            if browser_instance.clicked:
+                clicked_label.config(text="Clicked")
+            else:
+                clicked_label.config(text="")
 
-    # Schedule the function to run again after 1 second
     root.after(1000, update_browser_status_display)
 
-
-def toggle_refresh(browser_instance, button_text):
-    if browser_instance.is_refreshing:
-        # Stop refreshing
+def toggle_monitoring(browser_instance, button_text):
+    if browser_instance.is_monitoring:
         browser_instance.individual_stop_event.set()
-        browser_instance.is_refreshing = False
-        button_text.set("Start Refresh")
-        browser_instance.status = "Refreshing stopped by user."
+        browser_instance.is_monitoring = False
+        button_text.set("Start Monitoring")
+        browser_instance.status = "Monitoring stopped by user."
     else:
-        # Restart refreshing
         browser_instance.individual_stop_event.clear()
-        browser_instance.is_refreshing = True
-        browser_instance.key_string_found = False  # Reset the key string found flag
-        button_text.set("Stop Refresh")
-        browser_instance.status = "Refreshing..."
-
-        # Start the refresh loop again
+        browser_instance.is_monitoring = True
+        button_text.set("Stop Monitoring")
+        browser_instance.status = "Monitoring..."
         thread = Thread(
-            target=refresh_webpage_until_change,
-            args=(
-                browser_instance.driver,
-                browser_instance,
-                browser_instance.driver.current_url,
-                key_string,
-                refresh_delay,
-                browser_instance.individual_stop_event,
-            ),
+            target=monitor_webpage_until_change,
+            args=(browser_instance.driver, browser_instance, browser_instance.driver.current_url, key_strings, browser_instance.individual_stop_event),
         )
         thread.start()
-
+        
+    # Show the "Clicked" label next to the button
+    clicked_label = browser_widgets[browser_instance.id]["clicked_label"]
+    clicked_label.config(text="Clicked")
+    clicked_label.pack(side=tk.RIGHT, padx=5)
 
 if __name__ == "__main__":
-    # Parse command-line arguments
     parser = argparse.ArgumentParser(description="Monitor a webpage for a key string.")
-    parser.add_argument(
-        "--url", default="http://localhost:8000/", help="The URL to monitor."
-    )  # https://glastonbury.seetickets.com/
-    parser.add_argument(
-        "--key-string",
-        default="postcode",
-        help="The key string to search for in the webpage content.",
-    )
-    parser.add_argument(
-        "--refresh-delay",
-        type=float,
-        default=1,
-        help="Delay in seconds between each webpage refresh.",
-    )
-    parser.add_argument(
-        "--browsers", type=int, default=1, help="Number of browsers."
-    )
-    parser.add_argument(
-        "--start-time", help="Start time in format 'YYYY-MM-DD HH:MM:SS' in UTC."
-    )
-
+    parser.add_argument("--url", default="https://glastonbury.seetickets.com/", help="The URL to monitor.")
+    parser.add_argument("--key-strings", nargs='+', default=["postcode", "captcha"], help="The key string to search for in the webpage content.")
+    parser.add_argument("--browsers", type=int, default=1, help="Number of browsers.")
     args = parser.parse_args()
 
     url_to_monitor = args.url
-    key_string = args.key_string
+    key_strings = args.key_strings
     iterations = args.browsers
-    refresh_delay = args.refresh_delay  # Assign to a variable
-
-    # Set up the target datetime
-    if args.start_time:
-        try:
-            start_time = datetime.strptime(args.start_time, "%Y-%m-%d %H:%M:%S")
-            start_time = start_time.replace(tzinfo=timezone.utc)
-            TARGET_DATETIMES = [start_time]
-            print(start_time)
-        except ValueError:
-            print("Invalid start time format. Please use 'YYYY-MM-DD HH:MM:SS' format.")
-            sys.exit(1)
-    else:
-        TARGET_DATETIMES = [datetime.now(timezone.utc) + timedelta(seconds=1)]
 
     root = tk.Tk()
-    root.title("Running Glasto Program")
+    root.title("Webpage Monitoring Program")
     root.geometry("600x400")
 
-    label = tk.Label(
-        root, text="The program is running.\nClose this window to stop the program."
-    )
+    label = tk.Label(root, text="The program is running.\nClose this window to stop the program.")
     label.pack(pady=5)
 
-    countdown_str = tk.StringVar()
-    countdown_font = Font(family="Arial", size=14, weight="bold")
-    countdown_label = tk.Label(
-        root, textvariable=countdown_str, font=countdown_font, fg="red"
-    )
-    countdown_label.pack(pady=5)
-
-    # Frame to display browser statuses
-    browser_labels = {}
     browser_status_frame = tk.Frame(root)
     browser_status_frame.pack(pady=5)
 
-    # Define threads
-    thread1 = Thread(
-        target=check_time, args=(url_to_monitor, key_string, iterations, refresh_delay)
-    )
-    thread2 = Thread(target=update_countdown)
+    open_in_browsers(url_to_monitor, iterations)
 
-    thread1.start()
-    thread2.start()
-
-    update_browser_status_display()  # Start updating the browser status display
-
-    root.protocol("WM_DELETE_WINDOW", on_closing)  # Handle window closing event
-
-    try:
-        root.mainloop()
-    except KeyboardInterrupt:
-        print("Program interrupted by user.")
-        pass  # Do nothing to keep browsers open
+    update_browser_status_display()
+    root.protocol("WM_DELETE_WINDOW", lambda: root.destroy())
+    root.mainloop()
