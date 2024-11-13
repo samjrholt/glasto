@@ -39,4 +39,5 @@ constraints.txt
 # Pyright
 pyrightconfig.json
 
+.env
 env
