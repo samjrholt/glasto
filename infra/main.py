@@ -43,6 +43,7 @@ def create_servers(server_count: int = 1, current_server_ids: list = list):
             image="linode/ubuntu24.04",
             label=server_name,
             root_pass=os.getenv('LINODE_ROOT_PASS'),
+            swap_size=8000,
             metadata={
                 "user_data": userdata
             },
@@ -64,7 +65,7 @@ def list_servers():
 
 
 if __name__ == '__main__':
-    server_count = 4
+    server_count = 1
 
     server_ids = list_servers()
     create_servers(server_count, server_ids)
