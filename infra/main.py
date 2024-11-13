@@ -1,14 +1,14 @@
 import os
 from linode_api4 import LinodeClient
+from dotenv import load_dotenv
 import base64
 
+load_dotenv()
 
 def get_userdata_encoded():
     with open('infra/userdata.sh', 'r') as f:
         userdata = f.read()
-    with open('infra/env', 'r') as f:
-        envdata = f.read()
-    userdata = userdata.replace('TAILSCALE_AUTH_KEY_PLACEHOLDER', envdata)
+    userdata = userdata.replace('TAILSCALE_AUTH_KEY_PLACEHOLDER', os.getenv('TAILSCALE_AUTH_KEY'))
     encoded = base64.b64encode(userdata.encode('utf-8'))
     return encoded.decode('utf-8')
 
