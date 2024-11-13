@@ -7,18 +7,19 @@ import re
 load_dotenv()
 
 EXIT_NODES = [
-    '100.92.195.112',
-    #'100.82.8.49',
-    '100.103.233.72',
-    '100.69.125.80',
-    '100.106.242.96',
-    '100.74.85.30',
+    '100.92.195.112', # k-aspire-f5-573g Kurts Plex
+    #'100.82.8.49', # kl5 Kurts Laptop
+    '100.103.233.72', # turner-air Michaels Pi
+    '100.69.125.80', # google-pixel-7-pro Jacobs Pixel
+    '100.106.242.96', # google-pixel-8 Jacks Pixel
+    '100.74.85.30', # neplus-cph2609 Kurts phone?
 ]
 
 def get_userdata_encoded(server_id: int):
     with open('infra/userdata.sh', 'r') as f:
         userdata = f.read()
     userdata = userdata.replace('TAILSCALE_AUTH_KEY_PLACEHOLDER', os.getenv('TAILSCALE_AUTH_KEY'))
+    userdata = userdata.replace('SERVER_NAME_PLACEHOLDER', f"glasto-box-{server_id}")
     userdata = userdata.replace('TAILSCALE_EXIT_NODE_PLACEHOLDER', EXIT_NODES[server_id%len(EXIT_NODES)])
     encoded = base64.b64encode(userdata.encode('utf-8'))
     return encoded.decode('utf-8')

@@ -14,7 +14,7 @@ curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg | sudo tee
 curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.tailscale-keyring.list | sudo tee /etc/apt/sources.list.d/tailscale.list
 sudo apt-get update
 sudo apt-get install tailscale -y
-sudo tailscale up --auth-key=TAILSCALE_AUTH_KEY_PLACEHOLDER
+sudo tailscale up --hostname=SERVER_NAME_PLACEHOLDER --auth-key=TAILSCALE_AUTH_KEY_PLACEHOLDER
 tailscale ip -4
 sudo tailscale set --exit-node=TAILSCALE_EXIT_NODE_PLACEHOLDER
 # Setup ifconfig
