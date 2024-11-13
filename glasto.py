@@ -150,11 +150,11 @@ def check_page_for_key_string_and_wednesday_button(driver, browser_instance, key
                 except Exception as js_e:
                     print(f"Error displaying alert in browser {driver}: {js_e}")
 
-                if alert_sound:
-                    try:
-                        alert_sound.play()
-                    except Exception as sound_e:
-                        print(f"Error playing sound via pygame: {sound_e}")
+                #if alert_sound:
+                #    try:
+                #        alert_sound.play()
+                #    except Exception as sound_e:
+                #        print(f"Error playing sound via pygame: {sound_e}")
 
                 return True
             else:
@@ -234,6 +234,7 @@ def monitor_webpage_until_change(
 
 def open_in_browsers(url, iterations):
     global browser_id_counter
+    update_countdown()
     for _ in range(iterations):
         driver = setup_driver()
         individual_stop_event = Event()
@@ -324,16 +325,51 @@ def toggle_monitoring(browser_instance, button_text):
     clicked_label.config(text="Clicked")
     clicked_label.pack(side=tk.RIGHT, padx=5)
 
+from datetime import datetime, timezone, timedelta
+
+def get_gmt_time():
+    return datetime.now(timezone.utc)
+
+def update_countdown():
+    while True:  # Check if the program is still running
+        current_time = get_gmt_time()
+        next_target = TARGET_DATETIME
+        if current_time<next_target:
+            difference = next_target - current_time
+            hours, remainder = divmod(difference.seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            countdown_str.set(f"{difference.days}d {hours}h {minutes}m {seconds}s")
+        else:
+            countdown_str.set("All target times passed.")
+            break
+        time.sleep(0.5)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Monitor a webpage for a key string.")
     parser.add_argument("--url", default="https://glastonbury.seetickets.com/", help="The URL to monitor.")
     parser.add_argument("--key-strings", nargs='+', default=["postcode", "captcha"], help="The key string to search for in the webpage content.")
     parser.add_argument("--browsers", type=int, default=1, help="Number of browsers.")
+    parser.add_argument(
+        "--start-time", help="Start time in format 'YYYY-MM-DD HH:MM:SS' in UTC."
+    )
     args = parser.parse_args()
 
     url_to_monitor = args.url
     key_strings = args.key_strings
     iterations = args.browsers
+    
+    # Set up the target datetime
+    if args.start_time:
+        try:
+            start_time = datetime.strptime(args.start_time, "%Y-%m-%d %H:%M:%S")
+            start_time = start_time.replace(tzinfo=timezone.utc)
+            TARGET_DATETIME = start_time
+            print(start_time)
+        except ValueError:
+            print("Invalid start time format. Please use 'YYYY-MM-DD HH:MM:SS' format.")
+            sys.exit(1)
+    else:
+        TARGET_DATETIME = datetime.now(timezone.utc)
 
     root = tk.Tk()
     root.title("Webpage Monitoring Program")
@@ -341,11 +377,19 @@ if __name__ == "__main__":
 
     label = tk.Label(root, text="The program is running.\nClose this window to stop the program.")
     label.pack(pady=5)
+    
+    countdown_str = tk.StringVar()
+    countdown_font = Font(family="Arial", size=14, weight="bold")
+    countdown_label = tk.Label(
+        root, textvariable=countdown_str, font=countdown_font, fg="red"
+    )
+    countdown_label.pack(pady=5)
 
     browser_status_frame = tk.Frame(root)
     browser_status_frame.pack(pady=5)
-
-    open_in_browsers(url_to_monitor, iterations)
+    
+    thread1 = Thread(target=open_in_browsers, args=(url_to_monitor, iterations))
+    thread1.start()    
 
     update_browser_status_display()
     root.protocol("WM_DELETE_WINDOW", lambda: root.destroy())
