@@ -142,6 +142,7 @@ def check_page_for_key_string_and_wednesday_button(driver, browser_instance, key
         for key_string in key_strings:
             if key_string in current_content:
                 print(f"Key string found in {driver}!")
+                print(key_string)
                 browser_instance.status = "Key string found!"
                 browser_instance.key_string_found = True
 
@@ -348,7 +349,7 @@ def update_countdown():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Monitor a webpage for a key string.")
     parser.add_argument("--url", default="https://glastonbury.seetickets.com/", help="The URL to monitor.")
-    parser.add_argument("--key-strings", nargs='+', default=["postcode", "captcha"], help="The key string to search for in the webpage content.")
+    parser.add_argument("--key-strings", nargs='+', default=["admission", "balance", "£", "deposit"], help="The key string to search for in the webpage content.")
     parser.add_argument("--browsers", type=int, default=1, help="Number of browsers.")
     parser.add_argument(
         "--start-time", help="Start time in format 'YYYY-MM-DD HH:MM:SS' in UTC."
