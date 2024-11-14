@@ -55,7 +55,7 @@ Package: *
 Pin: origin packages.mozilla.org
 Pin-Priority: 1000
 ' | sudo tee /etc/apt/preferences.d/mozilla
-sudo apt-get update && sudo apt-get install firefox
+sudo apt-get update && sudo apt-get install firefox -y
 # Create a script to open firefox with --no-sandbox flag
 cat <<EOF > /root/Desktop/open-firefox.sh
 #!/bin/bash
