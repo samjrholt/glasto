@@ -40,7 +40,7 @@ def create_servers(server_count: int = 1, current_server_ids: list = list):
         userdata = get_userdata_encoded(server_id)
         print(f'Creating server `{server_name}')
         new_linode = client.linode.instance_create(
-            ltype="g6-standard-8",
+            ltype="g6-standard-4",
             region="gb-lon",
             image="linode/ubuntu24.04",
             label=server_name,
