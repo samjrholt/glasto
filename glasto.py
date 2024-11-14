@@ -147,6 +147,7 @@ def check_page_for_key_string_and_wednesday_button(driver, browser_instance, key
 
                 try:
                     driver.execute_script(alert_div)
+                    driver.maximize_window()
                 except Exception as js_e:
                     print(f"Error displaying alert in browser {driver}: {js_e}")
 
