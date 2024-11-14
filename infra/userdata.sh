@@ -16,9 +16,10 @@ sudo apt-get update
 sudo apt-get install tailscale -y
 sudo tailscale up --hostname=SERVER_NAME_PLACEHOLDER --auth-key=TAILSCALE_AUTH_KEY_PLACEHOLDER
 tailscale ip -4
-sudo tailscale set --exit-node=TAILSCALE_EXIT_NODE_PLACEHOLDER
 # Setup ifconfig
 apt install net-tools
+
+sudo mkdir /root/Desktop
 
 # setup chrome
 wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
@@ -89,3 +90,6 @@ xfce4-terminal
 EOF
 # Make the script executable
 chmod +x /root/Desktop/glasto-terminal.sh
+
+# Setup exit node as final command incase it knocks the outbound network out
+sudo tailscale set --exit-node=TAILSCALE_EXIT_NODE_PLACEHOLDER
