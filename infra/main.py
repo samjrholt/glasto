@@ -15,11 +15,13 @@ EXIT_NODES = [
     '100.74.85.30', # neplus-cph2609 Kurts phone?
 ]
 
+BASE_SERVER_NAME = 'linode-box'
+
 def get_userdata_encoded(server_id: int):
     with open('infra/userdata.sh', 'r') as f:
         userdata = f.read()
     userdata = userdata.replace('TAILSCALE_AUTH_KEY_PLACEHOLDER', os.getenv('TAILSCALE_AUTH_KEY'))
-    userdata = userdata.replace('SERVER_NAME_PLACEHOLDER', f"glasto-box-{server_id}")
+    userdata = userdata.replace('SERVER_NAME_PLACEHOLDER', f"{BASE_SERVER_NAME}-{server_id}")
     userdata = userdata.replace('TAILSCALE_EXIT_NODE_PLACEHOLDER', EXIT_NODES[server_id%len(EXIT_NODES)])
     encoded = base64.b64encode(userdata.encode('utf-8'))
     return encoded.decode('utf-8')
@@ -31,7 +33,7 @@ def create_servers(server_count: int = 1, current_server_ids: list = list):
     print(f"Creating {server_count} servers...")
     client = LinodeClient(token=os.getenv('LINODE_TOKEN'))
     for server_id in range(1, server_count+1):
-        server_name = f"glasto-box-{server_id}"
+        server_name = f"{BASE_SERVER_NAME}-{server_id}"
         if server_id in current_server_ids:
             print(f'Server `{server_name}` already exists. If you want to replace it, manually delete it first. Skipping...')
             continue
@@ -43,7 +45,7 @@ def create_servers(server_count: int = 1, current_server_ids: list = list):
             image="linode/ubuntu24.04",
             label=server_name,
             root_pass=os.getenv('LINODE_ROOT_PASS'),
-            swap_size=8000,
+            swap_size=16000,
             metadata={
                 "user_data": userdata
             },
@@ -57,7 +59,7 @@ def list_servers():
 
     print("Listing all servers...")
     for s in servers:
-        match = re.search(r"glasto-box-(\d+)", s.label)
+        match = re.search(rf"{BASE_SERVER_NAME}-(\d+)", s.label)
         if match:
             print(s.label, s.ips.ipv4.public[0].address)
             server_ids.append(int(match.group(1)))
@@ -65,7 +67,7 @@ def list_servers():
 
 
 if __name__ == '__main__':
-    server_count = 1
+    server_count = 10
 
     server_ids = list_servers()
     create_servers(server_count, server_ids)
