@@ -8,6 +8,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 #from selenium_stealth import stealth
 import string
 import random
+import re
 
 import tempfile
 
@@ -117,27 +118,8 @@ class BrowserInstance:
         self.clicked = False
         self.driver.execute_script(f"document.title = 'Browser {id}'")
 
-def check_page_for_key_string_and_wednesday_button(driver, browser_instance, key_strings):
+def check_page_for_key_string(driver, browser_instance, key_strings):
     try:
-        wednesday_buttons = driver.find_elements(
-            By.XPATH, "//a[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'wednesday')]"
-        )
-        if wednesday_buttons:
-            if "sold out" in wednesday_buttons[0].text.lower():
-                thursday_buttons = driver.find_elements(
-                    By.XPATH, "//a[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'thursday')]"
-                )
-                if thursday_buttons:
-                    thursday_buttons[0].click()
-                    print(f"'Wednesday' sold out, clicked 'Thursday' button in {driver}!")
-                    browser_instance.status = "'Wednesday' sold out, clicked 'Thursday'"
-                    browser_instance.clicked = True
-            else:
-                wednesday_buttons[0].click()
-                print(f"Clicked a 'Wednesday' button in {driver}!")
-                browser_instance.status = "Clicked 'Wednesday' button"
-                browser_instance.clicked = True
-
         current_content = driver.page_source
         for key_string in key_strings:
             if key_string in current_content:
@@ -159,9 +141,18 @@ def check_page_for_key_string_and_wednesday_button(driver, browser_instance, key
                 #        print(f"Error playing sound via pygame: {sound_e}")
 
                 return True
-            else:
-                browser_instance.status = f"'{key_string}' not found, monitoring continues."
-                return False
+
+        progress_match = re.search(r'"progress":\s*([0-9.]+)', current_content)
+        if progress_match:
+            progress_value = float(progress_match.group(1)) * 100  # Convert to percentage
+            try:
+                progress_value_2 = driver.execute_script("return window.queueViewModel.ticket.progress();")
+                progress_value_2 = float(progress_value_2) * 100
+                progress_value =  max(progress_value, progress_value_2)
+            except Exception as e:
+                pass
+            browser_instance.status = f"Progress {progress_value} %"
+        return False
     except Exception as e:
         print(f"Error checking page in {driver}: {e}")
         browser_instance.status = f"Error: {e}"
@@ -183,7 +174,7 @@ def monitor_webpage_until_change(
             driver.execute_script(f"document.title = 'Browser {browser_instance.id}'")
 
             # Check for the key string and "Wednesday" button
-            if check_page_for_key_string_and_wednesday_button(driver, browser_instance, key_strings):
+            if check_page_for_key_string(driver, browser_instance, key_strings):
                 print(f"Key string found, stopping monitoring for Browser {browser_instance.id}.")
                 if individual_stop_event:
                     individual_stop_event.set()
@@ -203,7 +194,7 @@ def monitor_webpage_until_change(
                 driver.execute_script(f"document.title = 'Browser {browser_instance.id}'")
                 
                 # Check the page again after redirect
-                if check_page_for_key_string_and_wednesday_button(driver, browser_instance, key_strings):
+                if check_page_for_key_string(driver, browser_instance, key_strings):
                     print(f"Key string found after redirect, stopping monitoring for Browser {browser_instance.id}.")
                     if individual_stop_event:
                         individual_stop_event.set()
@@ -348,7 +339,7 @@ def update_countdown():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Monitor a webpage for a key string.")
-    parser.add_argument("--url", default="https://glastonbury.seetickets.com/", help="The URL to monitor.")
+    parser.add_argument("--url", default="http://localhost:8000/", help="The URL to monitor.") #https://glastonbury.seetickets.com/
     parser.add_argument("--key-strings", nargs='+', default=["admission", "balance", "£", "deposit"], help="The key string to search for in the webpage content.")
     parser.add_argument("--browsers", type=int, default=1, help="Number of browsers.")
     parser.add_argument(
